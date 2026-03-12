@@ -166,6 +166,26 @@
     /* Firebase offline banner */
     .offline-banner{display:none;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 16px;margin:12px 20px;font-size:0.82rem;color:var(--yellow);align-items:center;gap:8px;}
     .offline-banner.show{display:flex;}
+
+    /* User selector */
+    .user-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+    .user-btn{font-family:var(--mono);font-size:0.72rem;font-weight:700;padding:5px 11px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+    .user-btn.active{background:rgba(168,85,247,0.15);border-color:var(--purple);color:#d8b4fe;}
+    .user-btn:hover:not(.active){border-color:var(--text2);color:var(--text2);}
+    .user-custom-wrap{display:none;}
+    .user-custom-input{background:var(--surface2);border:1px solid var(--border);border-radius:100px;color:var(--text);font-family:var(--mono);font-size:0.72rem;padding:5px 10px;width:90px;outline:none;}
+    .user-custom-input:focus{border-color:var(--purple);}
+
+    /* Audit log */
+    .audit-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;margin-bottom:9px;}
+    .audit-action-delete{border-left:3px solid var(--red);}
+    .audit-action-edit{border-left:3px solid var(--yellow);}
+    .audit-action-create{border-left:3px solid var(--green);}
+    .audit-meta{font-size:0.75rem;color:var(--text3);font-family:var(--mono);margin-bottom:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .audit-diff{font-size:0.8rem;margin-top:8px;background:var(--surface2);border-radius:8px;padding:10px 12px;}
+    .audit-diff .before{color:#fca5a5;margin-bottom:4px;font-style:italic;}
+    .audit-diff .after{color:#86efac;}
+    .audit-by{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;background:rgba(168,85,247,0.12);color:#d8b4fe;font-size:0.72rem;font-weight:700;font-family:var(--mono);}
   </style>
 </head>
 <body>
@@ -189,6 +209,19 @@
       </div>
     </div>
   </div>
+  <!-- USER SELECTOR BAR -->
+  <div style="padding:10px 20px;background:rgba(10,15,30,0.8);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);white-space:nowrap;">👤 Logget ind som:</span>
+    <div class="user-selector" id="user-selector">
+      <button class="user-btn" onclick="setCurrentUser('Masri',this)">Masri</button>
+      <button class="user-btn" onclick="setCurrentUser('Khaled',this)">Khaled</button>
+      <button class="user-btn" onclick="setCurrentUser('Rifai',this)">Rifai</button>
+      <button class="user-btn" id="user-btn-anden" onclick="setCurrentUser('anden',this)">Anden...</button>
+      <div class="user-custom-wrap" id="user-custom-wrap">
+        <input class="user-custom-input" id="user-custom-input" placeholder="Dit navn" oninput="setCustomUser(this.value)" />
+      </div>
+    </div>
+  </div>
 
   <div class="offline-banner" id="offline-banner">⚡ Du er offline — ændringer gemmes lokalt og synkroniseres når forbindelsen genetableres.</div>
 
@@ -199,6 +232,7 @@
     <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
     <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
     <button class="nav-btn" onclick="showView('settings',this)">⚙️ Indstillinger</button>
+    <button class="nav-btn" onclick="showView('auditlog',this)">🔍 Revisionslog</button>
   </nav>
 
   <!-- OVERVIEW -->
@@ -222,6 +256,10 @@
       <div class="form-group"><label>Kategori</label><div class="cat-grid" id="cat-grid"></div></div>
       <div id="log-extra-fields"></div>
       <div class="form-group"><label>Kommentar (valgfri)</label><textarea id="log-comment" placeholder="Tilføj kommentar..."></textarea></div>
+      <div class="form-group" id="ansvarlig-display" style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:0.83rem;color:var(--text2)">
+        ✍️ Registreres af: <span id="ansvarlig-name" style="color:#d8b4fe;font-family:var(--mono);font-weight:700">—</span>
+        <span style="font-size:0.75rem;color:var(--text3);margin-left:8px">(skift øverst på siden)</span>
+      </div>
       <button class="btn btn-primary" style="width:100%" id="save-log-btn" onclick="saveLog()">💾 Gem notering</button>
     </div>
   </div>
@@ -287,6 +325,25 @@
         <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(event)" />
       </div>
     </div>
+  </div>
+
+  <!-- REVISIONSLOG -->
+  <div class="view" id="view-auditlog">
+    <div class="view-title">Revisionslog</div>
+    <div class="view-sub">Alle sletninger og redigeringer af noteringer</div>
+    <div class="date-range">
+      <div class="form-group"><label>Fra dato</label><input type="date" id="audit-from" onchange="renderAuditLog()" /></div>
+      <div class="form-group"><label>Til dato</label><input type="date" id="audit-to" onchange="renderAuditLog()" /></div>
+      <div class="form-group" style="min-width:130px"><label>Handling</label>
+        <select id="audit-action-filter" onchange="renderAuditLog()">
+          <option value="">Alle</option>
+          <option value="create">✅ Oprettet</option>
+          <option value="edit">✏️ Redigeret</option>
+          <option value="delete">🗑️ Slettet</option>
+        </select>
+      </div>
+    </div>
+    <div id="audit-list"></div>
   </div>
 
 </div><!-- end #app -->
@@ -416,6 +473,25 @@
   </div>
 </div>
 
+<!-- EDIT LOG MODAL -->
+<div class="modal-overlay" id="edit-log-modal">
+  <div class="modal">
+    <div class="modal-title"><span>✏️ Rediger notering</span><button class="modal-close" onclick="closeModal('edit-log-modal')">✕</button></div>
+    <div class="form-group"><label>Dato</label><input type="date" id="edit-log-date" /></div>
+    <div class="form-group"><label>Medarbejder</label><div class="emp-select-pills" id="edit-emp-pills"></div></div>
+    <div class="form-group"><label>Kategori</label><div class="cat-grid" id="edit-cat-grid"></div></div>
+    <div id="edit-log-extra-fields"></div>
+    <div class="form-group"><label>Kommentar</label><textarea id="edit-log-comment" placeholder="Kommentar..."></textarea></div>
+    <div class="form-group" style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:0.83rem;color:var(--text2)">
+      ✍️ Redigeres af: <span id="edit-ansvarlig-name" style="color:#d8b4fe;font-family:var(--mono);font-weight:700">—</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('edit-log-modal')">Annuller</button>
+      <button class="btn btn-primary" style="flex:1" id="save-edit-log-btn" onclick="saveEditLog()">Gem ændringer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -425,10 +501,10 @@
 import { initializeApp }
   from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
-  getFirestore, collection, doc,
-  onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
-  orderBy, query, writeBatch,
-  enableIndexedDbPersistence
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc,
+  onSnapshot, addDoc, updateDoc, deleteDoc,
+  orderBy, query, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -441,9 +517,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-
-enableIndexedDbPersistence(db).catch(e => console.warn('Persistence:', e.code));
+const db  = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 // ── Firestore helpers ──────────────────────────────
 const colRef   = name          => collection(db, name);
@@ -466,10 +542,12 @@ let employees  = [];
 let logs       = [];
 let cards      = [];
 let customCats = [];
-let _listenersReady = 0;
+let auditLogs  = [];
+let currentUser = localStorage.getItem('pilotnote_user') || '';
 let _appShown = false;
 
-let editingEmpId=null, editingCCId=null;
+let editingEmpId=null, editingCCId=null, editingLogId=null;
+let editSelectedEmpId=null, editSelectedCategory=null;
 let selectedCategory=null, selectedEmpId=null;
 let _cardFilter='', _catFilter='';
 
@@ -481,6 +559,54 @@ const syncLabel = () => document.getElementById('sync-label');
 function setSyncing(){ if(syncDot()){syncDot().className='sync-dot syncing'; syncLabel().textContent='Synkroniserer...';} }
 function setSynced() { if(syncDot()){syncDot().className='sync-dot';         syncLabel().textContent='Live';} }
 function setOffline(){ if(syncDot()){syncDot().className='sync-dot offline'; syncLabel().textContent='Offline';} }
+// ═══════════════════════════════════════════════════
+//  CURRENT USER (ANSVARLIG)
+// ═══════════════════════════════════════════════════
+const PRESET_USERS = ['Masri','Khaled','Rifai'];
+function initUserSelector(){
+  if(currentUser) applyUser(currentUser);
+}
+function applyUser(name){
+  currentUser = name;
+  localStorage.setItem('pilotnote_user', name);
+  // Update topbar buttons
+  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
+  const isPreset = PRESET_USERS.includes(name);
+  if(isPreset){
+    document.querySelectorAll('.user-btn').forEach(b => { if(b.textContent===name) b.classList.add('active'); });
+    document.getElementById('user-custom-wrap').style.display='none';
+  } else if(name){
+    document.getElementById('user-btn-anden').classList.add('active');
+    const wrap = document.getElementById('user-custom-wrap');
+    wrap.style.display='block';
+    document.getElementById('user-custom-input').value=name;
+  }
+  // Update ansvarlig display in log form
+  const el = document.getElementById('ansvarlig-name');
+  if(el) el.textContent = name || '— (vælg bruger øverst)';
+  const el2 = document.getElementById('edit-ansvarlig-name');
+  if(el2) el2.textContent = name || '— (vælg bruger øverst)';
+}
+window.setCurrentUser = function(name, btn){
+  if(name==='anden'){
+    document.querySelectorAll('.user-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const wrap = document.getElementById('user-custom-wrap');
+    wrap.style.display='block';
+    document.getElementById('user-custom-input').focus();
+    currentUser = localStorage.getItem('pilotnote_user') || '';
+    if(PRESET_USERS.includes(currentUser)) currentUser='';
+  } else {
+    applyUser(name);
+  }
+};
+window.setCustomUser = function(val){
+  currentUser = val.trim();
+  localStorage.setItem('pilotnote_user', currentUser);
+  const el = document.getElementById('ansvarlig-name');
+  if(el) el.textContent = currentUser || '—';
+};
+
 window.addEventListener('online',  () => { setSynced(); document.getElementById('offline-banner')?.classList.remove('show'); });
 window.addEventListener('offline', () => { setOffline(); document.getElementById('offline-banner')?.classList.add('show'); });
 if (!navigator.onLine) setOffline();
@@ -493,33 +619,41 @@ function startListeners() {
 
   _snap('employees', [orderBy('name')], snap => {
     employees = snap.docs.map(d => ({id:d.id,...d.data()}));
-    _onDataReady();
+    _onDataReady('employees');
     renderEmployees(); renderEmpPills(); populateEmpSelects();
     renderOverview(); renderHistory();
   }, err => console.error('employees:', err));
 
-  _snap('logs', [orderBy('date','desc'), orderBy('createdAt','desc')], snap => {
-    logs = snap.docs.map(d => ({id:d.id,...d.data()}));
-    _onDataReady();
+  _snap('logs', [orderBy('createdAt','desc')], snap => {
+    logs = snap.docs.map(d => ({id:d.id,...d.data()}))
+      .sort((a,b) => (b.date||'').localeCompare(a.date||'') || (b.createdAt||'').localeCompare(a.createdAt||''));
+    _onDataReady('logs');
     renderOverview(); renderHistory(); renderEmployees();
   }, err => console.error('logs:', err));
 
   _snap('cards', [orderBy('date','desc')], snap => {
     cards = snap.docs.map(d => ({id:d.id,...d.data()}));
-    _onDataReady();
+    _onDataReady('cards');
     renderCards(); renderEmployees();
   }, err => console.error('cards:', err));
 
   _snap('customCats', [orderBy('label')], snap => {
     customCats = snap.docs.map(d => ({id:d.id,...d.data()}));
-    _onDataReady();
+    _onDataReady('customCats');
     renderCustomCatsList(); renderCatGrid();
   }, err => console.error('customCats:', err));
+
+  // Audit log — does not block app startup
+  _snap('auditLogs', [orderBy('timestamp','desc')], snap => {
+    auditLogs = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderAuditLog();
+  }, err => console.error('auditLogs:', err));
 }
 
-function _onDataReady() {
-  _listenersReady++;
-  if (_listenersReady >= 4 && !_appShown) showApp();
+const _readySets = new Set();
+function _onDataReady(name) {
+  _readySets.add(name);
+  if (_readySets.size >= 4 && !_appShown) showApp();
 }
 setTimeout(() => { if (!_appShown) showApp(); }, 5000);
 
@@ -534,6 +668,7 @@ function showApp() {
 //  INIT UI
 // ═══════════════════════════════════════════════════
 function initUI() {
+  initUserSelector();
   const today = todayStr();
   const mo = new Date(Date.now()-30*864e5).toISOString().split('T')[0];
   document.getElementById('log-date').value   = today;
@@ -542,6 +677,10 @@ function initUI() {
   document.getElementById('exp-from').value   = mo;
   document.getElementById('exp-to').value     = today;
   document.getElementById('card-date').value  = today;
+  const auditFrom = document.getElementById('audit-from');
+  const auditTo   = document.getElementById('audit-to');
+  if(auditFrom) auditFrom.value = mo;
+  if(auditTo)   auditTo.value   = today;
   document.getElementById('today-date-label').textContent =
     new Date().toLocaleDateString('da-DK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.querySelectorAll('.modal-overlay').forEach(m =>
@@ -584,9 +723,10 @@ function showView(id,btn){
   if(btn) btn.classList.add('active');
   if(id==='overview') renderOverview();
   if(id==='history')  renderHistory();
-  if(id==='log')      { renderEmpPills(); renderCatGrid(); }
+  if(id==='log')      { renderEmpPills(); renderCatGrid(); applyUser(currentUser); }
   if(id==='cards')    renderCards();
   if(id==='settings') renderCustomCatsList();
+  if(id==='auditlog') renderAuditLog();
 }
 window.showView = showView;
 
@@ -645,14 +785,24 @@ window.saveLog = async function() {
     if(f.type==='tags') extra[f.id]=[...document.querySelectorAll(`input[name="${f.id}"]:checked`)].map(i=>i.value);
     else extra[f.id]=document.getElementById('field_'+f.id)?.value||'';
   });
+  if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
   try {
     setSyncing();
-    await _add('logs',{
+    const logData = {
       empId:selectedEmpId,
       date: document.getElementById('log-date').value,
       category:selectedCategory, extra,
       comment: document.getElementById('log-comment').value,
+      ansvarlig: currentUser,
       createdAt: new Date().toISOString()
+    };
+    const ref = await _add('logs', logData);
+    // Write audit entry
+    await _add('auditLogs',{
+      action:'create', logId:ref.id,
+      snapshot: logData,
+      by: currentUser,
+      timestamp: new Date().toISOString()
     });
     setSynced();
     selectedCategory=null; selectedEmpId=null;
@@ -668,9 +818,127 @@ window.saveLog = async function() {
 //  DELETE LOG
 // ═══════════════════════════════════════════════════
 window.deleteLog = async function(id){
-  if(!confirm('Slet denne notering?')) return;
-  try{ setSyncing(); await _delete('logs',id); setSynced(); toast('🗑️ Slettet'); }
+  if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); return; }
+  if(!confirm('Slet denne notering?\nDette registreres i revisionsloggen.')) return;
+  const original = logs.find(l=>l.id===id);
+  try{
+    setSyncing();
+    const b = _newBatch();
+    _batchDelete(b,'logs',id);
+    const auditRef = _newDocRef('auditLogs');
+    b.set(auditRef,{
+      action:'delete', logId:id,
+      snapshot: original||{},
+      by: currentUser,
+      timestamp: new Date().toISOString()
+    });
+    await b.commit();
+    setSynced(); toast('🗑️ Slettet');
+  }
   catch(e){ toast('❌ '+e.message); }
+};
+
+// ═══════════════════════════════════════════════════
+//  EDIT LOG
+// ═══════════════════════════════════════════════════
+window.openEditLogModal = function(id){
+  const l = logs.find(x=>x.id===id); if(!l) return;
+  editingLogId = id;
+  editSelectedEmpId = l.empId;
+  editSelectedCategory = l.category;
+  document.getElementById('edit-log-date').value = l.date||'';
+  document.getElementById('edit-log-comment').value = l.comment||'';
+  renderEditEmpPills();
+  renderEditCatGrid();
+  renderEditExtraFields(l.extra||{});
+  applyUser(currentUser);
+  openModal('edit-log-modal');
+};
+
+function renderEditEmpPills(){
+  const c=document.getElementById('edit-emp-pills'); if(!c) return;
+  c.innerHTML = employees.map(e=>
+    `<div class="emp-pill ${editSelectedEmpId===e.id?'selected':''}" onclick="selectEditEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`
+  ).join('');
+}
+window.selectEditEmp = function(id){ editSelectedEmpId=id; renderEditEmpPills(); };
+
+function renderEditCatGrid(){
+  const el=document.getElementById('edit-cat-grid'); if(!el) return;
+  el.innerHTML = allCats().map(c=>
+    `<button class="cat-btn ${editSelectedCategory===c.id?'selected':''}" onclick="selectEditCategory('${c.id}')">
+      <span class="cat-icon">${c.icon}</span>${c.label}
+    </button>`).join('');
+}
+window.selectEditCategory = function(id){
+  editSelectedCategory=id;
+  renderEditCatGrid();
+  renderEditExtraFields({});
+};
+
+function renderEditExtraFields(prefill){
+  const cat=catMap()[editSelectedCategory];
+  const el=document.getElementById('edit-log-extra-fields'); if(!el) return;
+  if(!cat){ el.innerHTML=''; return; }
+  el.innerHTML=(cat.fields||[]).map(f=>{
+    const v=prefill[f.id];
+    let inner='';
+    if(f.type==='tags'){
+      inner=`<div class="tag-check-grid">`+(f.options||[]).map(o=>{
+        const checked=Array.isArray(v)&&v.includes(o)?'checked':'';
+        return`<input type="checkbox" class="tag-check" id="et_${o.replace(/\W/g,'_')}" name="edit_${f.id}" value="${o}" ${checked}/>
+        <label for="et_${o.replace(/\W/g,'_')}">${o}</label>`;
+      }).join('')+`</div>`;
+    } else if(f.type==='select'){
+      inner=`<select id="edit_field_${f.id}">`+(f.options||[]).map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')+`</select>`;
+    } else {
+      inner=`<input type="${f.type||'text'}" id="edit_field_${f.id}" placeholder="${f.placeholder||''}" value="${v||''}"/>`;
+    }
+    return `<div class="form-group"><label>${f.label}</label>${inner}</div>`;
+  }).join('');
+}
+
+window.saveEditLog = async function(){
+  if(!currentUser){ toast('⚠️ Vælg hvem du er øverst'); return; }
+  if(!editSelectedEmpId){ toast('⚠️ Vælg medarbejder'); return; }
+  if(!editSelectedCategory){ toast('⚠️ Vælg kategori'); return; }
+  const btn=document.getElementById('save-edit-log-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+  const cat=catMap()[editSelectedCategory];
+  const extra={};
+  (cat.fields||[]).forEach(f=>{
+    if(f.type==='tags') extra[f.id]=[...document.querySelectorAll(`input[name="edit_${f.id}"]:checked`)].map(i=>i.value);
+    else extra[f.id]=document.getElementById('edit_field_'+f.id)?.value||'';
+  });
+  const original = logs.find(l=>l.id===editingLogId)||{};
+  const newData = {
+    empId:editSelectedEmpId,
+    date:document.getElementById('edit-log-date').value,
+    category:editSelectedCategory, extra,
+    comment:document.getElementById('edit-log-comment').value,
+    ansvarlig:original.ansvarlig||'',
+    createdAt:original.createdAt||'',
+    lastEditedBy:currentUser,
+    lastEditedAt:new Date().toISOString()
+  };
+  try{
+    setSyncing();
+    const b=_newBatch();
+    _batchUpdate(b,'logs',editingLogId,newData);
+    const auditRef=_newDocRef('auditLogs');
+    b.set(auditRef,{
+      action:'edit', logId:editingLogId,
+      before:original, after:newData,
+      by:currentUser,
+      timestamp:new Date().toISOString()
+    });
+    await b.commit();
+    setSynced();
+    closeModal('edit-log-modal');
+    toast('✅ Notering opdateret');
+    editingLogId=null;
+  }catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='Gem ændringer';
 };
 
 // ═══════════════════════════════════════════════════
@@ -1076,14 +1344,21 @@ function renderLogItem(l,cm,showDelete){
   if(!emp||!cat) return '';
   const extra=buildExtraText(l,cat);
   return`<div class="log-item anim-in">
-    ${showDelete?`<button class="btn btn-danger btn-sm btn-icon log-delete" onclick="deleteLog('${l.id}')">🗑️</button>`:''}
+    ${showDelete?`<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.2s" class="log-delete">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLogModal('${l.id}')">✏️</button>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLog('${l.id}')">🗑️</button>
+    </div>`:''}
     <div class="log-header">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px">
         <span class="badge badge-${cat.color}">${cat.icon} ${cat.label}</span>
         ${l.category==='invoice'&&l.extra?.inv_amount?`<span class="invoice-chip">💰 ${Number(l.extra.inv_amount).toLocaleString('da-DK')} kr.</span>`:''}
         <span style="font-size:0.82rem;color:var(--text2)"><strong>${emp.name}</strong> <span style="color:var(--text3)">(${emp.tur})</span></span>
       </div>
-      <div class="log-meta">${fmtDate(l.date)}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${l.ansvarlig?`<span class="audit-by">${l.ansvarlig}</span>`:''}
+        ${l.lastEditedBy?`<span style="font-size:0.7rem;color:var(--text3);font-style:italic">redigeret</span>`:''}
+        <span class="log-meta">${fmtDate(l.date)}</span>
+      </div>
     </div>
     ${extra?`<div class="log-details">${extra}</div>`:''}
     ${l.comment?`<div class="log-details" style="color:var(--text3);font-style:italic">"${l.comment}"</div>`:''}
@@ -1096,6 +1371,72 @@ function buildExtraText(l,cat){
     return `${f.label}: ${Array.isArray(v)?v.join(', '):v}`;
   }).filter(Boolean).join(' &nbsp;·&nbsp; ');
 }
+
+// ═══════════════════════════════════════════════════
+//  AUDIT LOG
+// ═══════════════════════════════════════════════════
+function renderAuditLog(){
+  const from  = document.getElementById('audit-from')?.value||'';
+  const to    = document.getElementById('audit-to')?.value||'';
+  const actionF = document.getElementById('audit-action-filter')?.value||'';
+  const list  = document.getElementById('audit-list'); if(!list) return;
+  const cm=catMap();
+  let filtered = auditLogs.filter(a=>{
+    const d=a.timestamp?.split('T')[0]||'';
+    if(from&&d<from) return false;
+    if(to  &&d>to)   return false;
+    if(actionF&&a.action!==actionF) return false;
+    return true;
+  });
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div style="font-size:0.9rem">Ingen handlinger i perioden</div></div>`;
+    return;
+  }
+  const actionLabel={create:'✅ Oprettet',edit:'✏️ Redigeret',delete:'🗑️ Slettet'};
+  list.innerHTML=filtered.map(a=>{
+    const snap=a.action==='edit'?a.before:a.snapshot;
+    const emp=employees.find(e=>e.id===snap?.empId)||{name:'Ukendt',tur:'-'};
+    const cat=cm[snap?.category]||{icon:'❓',label:snap?.category||'?'};
+    const ts=a.timestamp?new Date(a.timestamp).toLocaleString('da-DK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    let diffHtml='';
+    if(a.action==='edit'){
+      const fields=[];
+      // Date
+      if(a.before?.date!==a.after?.date)
+        fields.push(`<div><span class="before">Dato: ${a.before?.date||'—'}</span><div class="after">→ ${a.after?.date||'—'}</div></div>`);
+      // Employee
+      if(a.before?.empId!==a.after?.empId){
+        const eb=employees.find(e=>e.id===a.before?.empId)||{name:'?'};
+        const ea=employees.find(e=>e.id===a.after?.empId)||{name:'?'};
+        fields.push(`<div><span class="before">Medarbejder: ${eb.name}</span><div class="after">→ ${ea.name}</div></div>`);
+      }
+      // Category
+      if(a.before?.category!==a.after?.category){
+        const cb=cm[a.before?.category]||{label:a.before?.category};
+        const ca=cm[a.after?.category]||{label:a.after?.category};
+        fields.push(`<div><span class="before">Kategori: ${cb.label}</span><div class="after">→ ${ca.label}</div></div>`);
+      }
+      // Comment
+      if(a.before?.comment!==a.after?.comment)
+        fields.push(`<div><span class="before">Kommentar: "${a.before?.comment||''}"</span><div class="after">→ "${a.after?.comment||''}"</div></div>`);
+      if(fields.length) diffHtml=`<div class="audit-diff">${fields.join('')}</div>`;
+    }
+    if(a.action==='delete'&&snap){
+      const extra=buildExtraText({extra:snap.extra||{}},cat);
+      diffHtml=`<div class="audit-diff"><span class="before">Notering slettet: ${cat.icon} ${cat.label} — ${emp.name} (${fmtDate(snap.date)})${extra?' · '+extra:''}</span></div>`;
+    }
+    return`<div class="audit-item audit-action-${a.action}">
+      <div class="audit-meta">
+        <span style="font-weight:700;color:var(--text)">${actionLabel[a.action]||a.action}</span>
+        <span class="audit-by">${a.by||'?'}</span>
+        <span>${ts}</span>
+        <span style="color:var(--text2)">${cat.icon} ${cat.label} — <strong>${emp.name}</strong> (${emp.tur})</span>
+      </div>
+      ${diffHtml}
+    </div>`;
+  }).join('');
+}
+window.renderAuditLog = renderAuditLog;
 
 // ═══════════════════════════════════════════════════
 //  SELECTS
