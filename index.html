@@ -106,8 +106,7 @@
     .log-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px;}
     .log-meta{font-size:0.75rem;color:var(--text3);font-family:var(--mono);white-space:nowrap;}
     .log-details{font-size:0.85rem;color:var(--text2);margin-top:4px;}
-    .log-delete{position:absolute;top:8px;right:8px;opacity:0;transition:opacity 0.2s;}
-    .log-item:hover .log-delete{opacity:1;}
+    .log-delete{position:absolute;top:8px;right:8px;display:flex;gap:4px;}
 
     .search-wrap{position:relative;margin-bottom:16px;}
     .search-wrap input{padding-left:38px;}
@@ -167,6 +166,22 @@
     .offline-banner{display:none;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 16px;margin:12px 20px;font-size:0.82rem;color:var(--yellow);align-items:center;gap:8px;}
     .offline-banner.show{display:flex;}
 
+
+    /* LOGIN / USER PICK SCREEN */
+    #user-login-screen{position:fixed;inset:0;background:var(--bg);z-index:998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:30px 20px;}
+    .login-logo{font-family:var(--mono);font-size:2.2rem;font-weight:700;margin-bottom:6px;}
+    .login-logo span{color:var(--accent);}
+    .login-sub{font-size:0.88rem;color:var(--text3);margin-bottom:40px;}
+    .login-title{font-size:1rem;font-weight:700;color:var(--text2);margin-bottom:16px;text-align:center;}
+    .login-users{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:340px;margin-bottom:14px;}
+    .login-user-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 16px;border-radius:16px;border:2px solid var(--border);background:var(--surface);cursor:pointer;transition:all 0.18s;font-family:var(--sans);}
+    .login-user-btn:hover{border-color:var(--purple);background:rgba(168,85,247,0.08);transform:translateY(-2px);}
+    .login-user-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--accent));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:1rem;font-weight:700;color:white;}
+    .login-user-name{font-size:0.9rem;font-weight:700;color:var(--text);}
+    .login-custom-area{display:flex;gap:8px;width:100%;max-width:340px;align-items:center;}
+    .login-custom-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:0.88rem;padding:10px 14px;outline:none;}
+    .login-custom-input:focus{border-color:var(--purple);}
+    .login-custom-input::placeholder{color:var(--text3);}
     /* User selector */
     .user-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
     .user-btn{font-family:var(--mono);font-size:0.72rem;font-weight:700;padding:5px 11px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
@@ -197,6 +212,35 @@
   <div class="loading-status" id="loading-status">Forbinder til database...</div>
 </div>
 
+<!-- USER LOGIN SCREEN -->
+<div id="user-login-screen" style="display:none">
+  <div class="login-logo">Pilot<span>.</span>Note</div>
+  <div class="login-sub">Daglig medarbejderopfølgning</div>
+  <div class="login-title">Hvem er du?</div>
+  <div class="login-users" id="login-user-grid">
+    <button class="login-user-btn" onclick="loginAs('Masri')">
+      <div class="login-user-avatar">MA</div>
+      <div class="login-user-name">Masri</div>
+    </button>
+    <button class="login-user-btn" onclick="loginAs('Khaled')">
+      <div class="login-user-avatar">KH</div>
+      <div class="login-user-name">Khaled</div>
+    </button>
+    <button class="login-user-btn" onclick="loginAs('Rifai')">
+      <div class="login-user-avatar">RI</div>
+      <div class="login-user-name">Rifai</div>
+    </button>
+    <button class="login-user-btn" onclick="document.getElementById('login-custom-area').style.display='flex';document.getElementById('login-custom-inp').focus()">
+      <div class="login-user-avatar" style="background:linear-gradient(135deg,#475569,#1f2d45)">+</div>
+      <div class="login-user-name" style="color:var(--text2)">Anden</div>
+    </button>
+  </div>
+  <div class="login-custom-area" id="login-custom-area" style="display:none">
+    <input class="login-custom-input" id="login-custom-inp" placeholder="Skriv dit navn..." onkeydown="if(event.key==='Enter')loginCustom()" />
+    <button class="btn btn-primary" onclick="loginCustom()">OK</button>
+  </div>
+</div>
+
 <div id="app" style="display:none">
 
   <div class="topbar">
@@ -209,18 +253,10 @@
       </div>
     </div>
   </div>
-  <!-- USER SELECTOR BAR -->
-  <div style="padding:10px 20px;background:rgba(10,15,30,0.8);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);white-space:nowrap;">👤 Logget ind som:</span>
-    <div class="user-selector" id="user-selector">
-      <button class="user-btn" onclick="setCurrentUser('Masri',this)">Masri</button>
-      <button class="user-btn" onclick="setCurrentUser('Khaled',this)">Khaled</button>
-      <button class="user-btn" onclick="setCurrentUser('Rifai',this)">Rifai</button>
-      <button class="user-btn" id="user-btn-anden" onclick="setCurrentUser('anden',this)">Anden...</button>
-      <div class="user-custom-wrap" id="user-custom-wrap">
-        <input class="user-custom-input" id="user-custom-input" placeholder="Dit navn" oninput="setCustomUser(this.value)" />
-      </div>
-    </div>
+  <!-- ACTIVE USER BAR -->
+  <div style="padding:7px 20px;background:rgba(10,15,30,0.7);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:0.78rem;color:var(--text3);font-family:var(--mono);">👤 <span id="active-user-label" style="color:#d8b4fe;font-weight:700"></span></span>
+    <button class="btn btn-ghost btn-sm" style="font-size:0.72rem;padding:3px 10px;" onclick="switchUser()">Skift bruger</button>
   </div>
 
   <div class="offline-banner" id="offline-banner">⚡ Du er offline — ændringer gemmes lokalt og synkroniseres når forbindelsen genetableres.</div>
@@ -564,47 +600,24 @@ function setOffline(){ if(syncDot()){syncDot().className='sync-dot offline'; syn
 // ═══════════════════════════════════════════════════
 const PRESET_USERS = ['Masri','Khaled','Rifai'];
 function initUserSelector(){
-  if(currentUser) applyUser(currentUser);
+  applyUser(currentUser);
 }
 function applyUser(name){
   currentUser = name;
-  localStorage.setItem('pilotnote_user', name);
-  // Update topbar buttons
-  document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
-  const isPreset = PRESET_USERS.includes(name);
-  if(isPreset){
-    document.querySelectorAll('.user-btn').forEach(b => { if(b.textContent===name) b.classList.add('active'); });
-    document.getElementById('user-custom-wrap').style.display='none';
-  } else if(name){
-    document.getElementById('user-btn-anden').classList.add('active');
-    const wrap = document.getElementById('user-custom-wrap');
-    wrap.style.display='block';
-    document.getElementById('user-custom-input').value=name;
-  }
-  // Update ansvarlig display in log form
+  if(name) localStorage.setItem('pilotnote_user', name);
+  const lbl = document.getElementById('active-user-label');
+  if(lbl) lbl.textContent = name || '—';
   const el = document.getElementById('ansvarlig-name');
-  if(el) el.textContent = name || '— (vælg bruger øverst)';
+  if(el) el.textContent = name || '—';
   const el2 = document.getElementById('edit-ansvarlig-name');
-  if(el2) el2.textContent = name || '— (vælg bruger øverst)';
+  if(el2) el2.textContent = name || '—';
 }
-window.setCurrentUser = function(name, btn){
-  if(name==='anden'){
-    document.querySelectorAll('.user-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const wrap = document.getElementById('user-custom-wrap');
-    wrap.style.display='block';
-    document.getElementById('user-custom-input').focus();
-    currentUser = localStorage.getItem('pilotnote_user') || '';
-    if(PRESET_USERS.includes(currentUser)) currentUser='';
-  } else {
-    applyUser(name);
-  }
-};
-window.setCustomUser = function(val){
-  currentUser = val.trim();
-  localStorage.setItem('pilotnote_user', currentUser);
-  const el = document.getElementById('ansvarlig-name');
-  if(el) el.textContent = currentUser || '—';
+window.switchUser = function(){
+  sessionStorage.removeItem('pn_session_user');
+  document.getElementById('app').style.display='none';
+  document.getElementById('user-login-screen').style.display='flex';
+  document.getElementById('login-custom-area').style.display='none';
+  document.getElementById('login-custom-inp').value='';
 };
 
 window.addEventListener('online',  () => { setSynced(); document.getElementById('offline-banner')?.classList.remove('show'); });
@@ -660,9 +673,28 @@ setTimeout(() => { if (!_appShown) showApp(); }, 5000);
 function showApp() {
   _appShown = true;
   document.getElementById('loading-screen').style.display = 'none';
+  // If user already chosen in this session, skip login
+  if(currentUser && sessionStorage.getItem('pn_session_user')) {
+    document.getElementById('app').style.display = 'block';
+    initUI();
+  } else {
+    document.getElementById('user-login-screen').style.display = 'flex';
+  }
+}
+
+window.loginAs = function(name){
+  currentUser = name;
+  localStorage.setItem('pilotnote_user', name);
+  sessionStorage.setItem('pn_session_user', name);
+  document.getElementById('user-login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   initUI();
-}
+};
+window.loginCustom = function(){
+  const v = document.getElementById('login-custom-inp').value.trim();
+  if(!v){ document.getElementById('login-custom-inp').focus(); return; }
+  loginAs(v);
+};
 
 // ═══════════════════════════════════════════════════
 //  INIT UI
@@ -708,6 +740,7 @@ const BUILTIN = [
   {id:'new_employee',icon:'🆕',label:'Ny medarbejder info',color:'green',fields:[{id:'training_start',label:'Oplæring startdato',type:'date'},{id:'first_drive',label:'Første køredag',type:'date'}]},
   {id:'external_drive',icon:'🚛',label:'Kørsel for ekstern vognmand',color:'cyan',fields:[{id:'ext_company',label:'Vognmand / firma',type:'text',placeholder:'Firma ApS'},{id:'ext_hours',label:'Timer kørt',type:'number',placeholder:'8'},{id:'ext_date',label:'Dato',type:'date'}]},
   {id:'invoice',icon:'💸',label:'Regning modtaget',color:'red',fields:[{id:'inv_type',label:'Type',type:'select',options:['Bøde','Værksted','Vejhjælp','Selvrisiko','Andet']},{id:'inv_sender',label:'Afsender',type:'text',placeholder:'Fx Rigspolitiet'},{id:'inv_amount',label:'Beløb (kr.)',type:'number',placeholder:'1500'},{id:'inv_ref',label:'Reference',type:'text',placeholder:'Valgfri'}]},
+  {id:'timeclock',icon:'🕐',label:'Tidsregistrering app',color:'cyan',fields:[{id:'tc_status',label:'Status',type:'select',options:['Tjekket ind','Tjekket ud','Glemt check-ind','Glemt check-ud','App-fejl']},{id:'tc_time',label:'Tidspunkt',type:'text',placeholder:'Fx 07:42'},{id:'tc_note',label:'Bemærkning',type:'text',placeholder:'Fx kunne ikke logge ind'}]},
   {id:'other',icon:'📝',label:'Andet',color:'gray',fields:[]},
 ];
 function allCats(){ return [...BUILTIN,...customCats.map(c=>({...c,isCustom:true}))]; }
@@ -1343,10 +1376,10 @@ function renderLogItem(l,cm,showDelete){
   const cat=cm[l.category];
   if(!emp||!cat) return '';
   const extra=buildExtraText(l,cat);
-  return`<div class="log-item anim-in">
-    ${showDelete?`<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity 0.2s" class="log-delete">
-      <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLogModal('${l.id}')">✏️</button>
-      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLog('${l.id}')">🗑️</button>
+  return`<div class="log-item anim-in" style="padding-right:${showDelete?'88px':'16px'}">
+    ${showDelete?`<div class="log-delete">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLogModal('${l.id}')" title="Rediger">✏️</button>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLog('${l.id}')" title="Slet">🗑️</button>
     </div>`:''}
     <div class="log-header">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px">
@@ -1398,32 +1431,59 @@ function renderAuditLog(){
     const emp=employees.find(e=>e.id===snap?.empId)||{name:'Ukendt',tur:'-'};
     const cat=cm[snap?.category]||{icon:'❓',label:snap?.category||'?'};
     const ts=a.timestamp?new Date(a.timestamp).toLocaleString('da-DK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+
+    function diffRow(label,bVal,aVal){
+      if(String(bVal||'')===String(aVal||'')) return '';
+      return `<div style="margin-bottom:5px">
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px">${label}</div>
+        <div class="before">⬅ ${bVal||'(tom)'}</div>
+        <div class="after">➡ ${aVal||'(tom)'}</div>
+      </div>`;
+    }
+
     let diffHtml='';
     if(a.action==='edit'){
-      const fields=[];
-      // Date
-      if(a.before?.date!==a.after?.date)
-        fields.push(`<div><span class="before">Dato: ${a.before?.date||'—'}</span><div class="after">→ ${a.after?.date||'—'}</div></div>`);
-      // Employee
-      if(a.before?.empId!==a.after?.empId){
-        const eb=employees.find(e=>e.id===a.before?.empId)||{name:'?'};
-        const ea=employees.find(e=>e.id===a.after?.empId)||{name:'?'};
-        fields.push(`<div><span class="before">Medarbejder: ${eb.name}</span><div class="after">→ ${ea.name}</div></div>`);
-      }
-      // Category
-      if(a.before?.category!==a.after?.category){
-        const cb=cm[a.before?.category]||{label:a.before?.category};
-        const ca=cm[a.after?.category]||{label:a.after?.category};
-        fields.push(`<div><span class="before">Kategori: ${cb.label}</span><div class="after">→ ${ca.label}</div></div>`);
-      }
-      // Comment
-      if(a.before?.comment!==a.after?.comment)
-        fields.push(`<div><span class="before">Kommentar: "${a.before?.comment||''}"</span><div class="after">→ "${a.after?.comment||''}"</div></div>`);
-      if(fields.length) diffHtml=`<div class="audit-diff">${fields.join('')}</div>`;
+      const rows=[];
+      rows.push(diffRow('Dato', fmtDate(a.before?.date), fmtDate(a.after?.date)));
+      const eb=employees.find(e=>e.id===a.before?.empId)||{name:a.before?.empId||'?',tur:''};
+      const ea=employees.find(e=>e.id===a.after?.empId)||{name:a.after?.empId||'?',tur:''};
+      rows.push(diffRow('Medarbejder', eb.name+(eb.tur?' ('+eb.tur+')':''), ea.name+(ea.tur?' ('+ea.tur+')':', ')));
+      const cb=cm[a.before?.category]||{label:a.before?.category||'?'};
+      const ca=cm[a.after?.category]||{label:a.after?.category||'?'};
+      rows.push(diffRow('Kategori', cb.icon+' '+cb.label, ca.icon+' '+ca.label));
+      rows.push(diffRow('Kommentar', a.before?.comment, a.after?.comment));
+      // Extra fields
+      const allFids=[...new Set([...Object.keys(a.before?.extra||{}),...Object.keys(a.after?.extra||{})])];
+      allFids.forEach(fid=>{
+        const bv=a.before?.extra?.[fid]; const av=a.after?.extra?.[fid];
+        const bStr=Array.isArray(bv)?bv.join(', '):(bv||'');
+        const aStr=Array.isArray(av)?av.join(', '):(av||'');
+        if(bStr!==aStr){
+          const fld=(cm[a.after?.category]?.fields||[]).find(f=>f.id===fid)||{label:fid};
+          rows.push(diffRow(fld.label, bStr, aStr));
+        }
+      });
+      const filled=rows.filter(Boolean);
+      if(filled.length) diffHtml=`<div class="audit-diff">${filled.join('')}</div>`;
+    }
+    if(a.action==='create'&&snap){
+      const extra=buildExtraText({extra:snap.extra||{}},cat);
+      diffHtml=`<div class="audit-diff">
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Oprettet notering</div>
+        <div class="after">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
+        ${extra?`<div class="after" style="margin-top:3px">${extra}</div>`:''}
+        ${snap.comment?`<div class="after" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
+      </div>`;
     }
     if(a.action==='delete'&&snap){
       const extra=buildExtraText({extra:snap.extra||{}},cat);
-      diffHtml=`<div class="audit-diff"><span class="before">Notering slettet: ${cat.icon} ${cat.label} — ${emp.name} (${fmtDate(snap.date)})${extra?' · '+extra:''}</span></div>`;
+      diffHtml=`<div class="audit-diff">
+        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Slettet notering</div>
+        <div class="before">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
+        ${extra?`<div class="before" style="margin-top:3px">${extra}</div>`:''}
+        ${snap.comment?`<div class="before" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
+        ${snap.ansvarlig?`<div style="margin-top:4px;font-size:0.75rem;color:var(--text3)">Oprindeligt registreret af: <span class="audit-by">${snap.ansvarlig}</span></div>`:''}
+      </div>`;
     }
     return`<div class="audit-item audit-action-${a.action}">
       <div class="audit-meta">
