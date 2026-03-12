@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0f1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Pilot.Note" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Pilot.Note</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg:#0a0f1e; --surface:#111827; --surface2:#1a2235; --border:#1f2d45;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent-glow:rgba(59,130,246,0.15);
+      --green:#22c55e; --red:#ef4444; --orange:#f97316; --yellow:#eab308;
+      --purple:#a855f7; --cyan:#06b6d4; --text:#f1f5f9; --text2:#94a3b8; --text3:#475569;
+      --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif; --radius:12px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(59,130,246,0.12) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(168,85,247,0.08) 0%,transparent 60%);pointer-events:none;z-index:0;}
+    #app{position:relative;z-index:1;min-height:100dvh;}
+
+    /* LOADING SCREEN */
+    #loading-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+    .loading-logo{font-family:var(--mono);font-size:2rem;font-weight:700;}
+    .loading-logo span{color:var(--accent);}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    .loading-status{font-size:0.85rem;color:var(--text3);}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* SYNC INDICATOR */
+    .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;transition:background 0.3s;}
+    .sync-dot.syncing{background:var(--yellow);animation:pulse 1s infinite;}
+    .sync-dot.offline{background:var(--red);}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:rgba(10,15,30,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+    .logo{font-family:var(--mono);font-size:1.2rem;font-weight:700;letter-spacing:-0.5px;}
+    .logo span{color:var(--accent);}
+    .topbar-right{display:flex;align-items:center;gap:10px;}
+    .sync-status{font-size:0.75rem;color:var(--text3);display:flex;align-items:center;}
+    .topbar-actions{display:flex;gap:6px;}
+
+    .nav{display:flex;gap:4px;padding:12px 20px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);}
+    .nav::-webkit-scrollbar{display:none;}
+    .nav-btn{font-family:var(--sans);font-size:0.78rem;font-weight:600;padding:7px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all 0.2s;}
+    .nav-btn:hover{color:var(--text);border-color:var(--accent);}
+    .nav-btn.active{background:var(--accent);color:white;border-color:var(--accent);box-shadow:0 0 16px rgba(59,130,246,0.3);}
+
+    .view{display:none;padding:20px 20px 100px;max-width:960px;margin:0 auto;}
+    .view.active{display:block;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+    .view-title{font-size:1.4rem;font-weight:700;margin-bottom:4px;}
+    .view-sub{font-size:0.85rem;color:var(--text2);margin-bottom:20px;}
+    .section-title{font-size:0.88rem;font-weight:700;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+
+    .btn{font-family:var(--sans);font-size:0.85rem;font-weight:600;padding:9px 18px;border-radius:8px;border:none;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:7px;}
+    .btn:disabled{opacity:0.5;cursor:not-allowed;}
+    .btn-primary{background:var(--accent);color:white;}
+    .btn-primary:hover:not(:disabled){background:#2563eb;box-shadow:0 0 16px rgba(59,130,246,0.3);}
+    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border);}
+    .btn-ghost:hover:not(:disabled){color:var(--text);border-color:var(--accent);}
+    .btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+    .btn-danger:hover:not(:disabled){background:rgba(239,68,68,0.2);}
+    .btn-green{background:rgba(34,197,94,0.1);color:var(--green);border:1px solid rgba(34,197,94,0.3);}
+    .btn-green:hover:not(:disabled){background:rgba(34,197,94,0.2);}
+    .btn-sm{padding:5px 11px;font-size:0.78rem;}
+    .btn-icon{padding:7px;border-radius:8px;}
+
+    .form-group{margin-bottom:14px;}
+    label{display:block;font-size:0.76rem;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;}
+    input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--sans);font-size:0.88rem;padding:9px 12px;transition:border-color 0.2s;outline:none;}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+    select option{background:var(--surface);}
+    textarea{resize:vertical;min-height:70px;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:600px){.grid-2{grid-template-columns:1fr;}}
+
+    .emp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:9px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all 0.2s;}
+    .emp-card:hover{border-color:var(--accent);transform:translateX(3px);}
+    .emp-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:0.72rem;font-weight:700;color:white;flex-shrink:0;}
+    .emp-info{flex:1;min-width:0;}
+    .emp-name{font-weight:600;font-size:0.92rem;}
+    .emp-tur{font-size:0.78rem;color:var(--accent2);font-family:var(--mono);}
+    .emp-actions{display:flex;gap:6px;}
+
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:100px;font-size:0.72rem;font-weight:600;}
+    .badge-red{background:rgba(239,68,68,0.12);color:#fca5a5;}
+    .badge-orange{background:rgba(249,115,22,0.12);color:#fdba74;}
+    .badge-green{background:rgba(34,197,94,0.12);color:#86efac;}
+    .badge-blue{background:rgba(59,130,246,0.12);color:#93c5fd;}
+    .badge-yellow{background:rgba(234,179,8,0.12);color:#fde047;}
+    .badge-purple{background:rgba(168,85,247,0.12);color:#d8b4fe;}
+    .badge-cyan{background:rgba(6,182,212,0.12);color:#67e8f9;}
+    .badge-gray{background:rgba(100,116,139,0.12);color:#94a3b8;}
+
+    .log-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;margin-bottom:9px;position:relative;}
+    .log-item.new-item{border-color:var(--accent);animation:highlightNew 2s ease forwards;}
+    @keyframes highlightNew{0%{box-shadow:0 0 0 2px var(--accent);}100%{box-shadow:none;border-color:var(--border);}}
+    .log-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px;}
+    .log-meta{font-size:0.75rem;color:var(--text3);font-family:var(--mono);white-space:nowrap;}
+    .log-details{font-size:0.85rem;color:var(--text2);margin-top:4px;}
+    .log-delete{position:absolute;top:8px;right:8px;opacity:0;transition:opacity 0.2s;}
+    .log-item:hover .log-delete{opacity:1;}
+
+    .search-wrap{position:relative;margin-bottom:16px;}
+    .search-wrap input{padding-left:38px;}
+    .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);}
+
+    .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px;margin-bottom:16px;}
+    .cat-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;border-radius:10px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all 0.18s;font-family:var(--sans);font-size:0.74rem;font-weight:600;color:var(--text2);text-align:center;}
+    .cat-btn:hover{transform:translateY(-2px);color:var(--text);}
+    .cat-btn.selected{color:var(--text);border-color:var(--accent);background:var(--accent-glow);}
+    .cat-icon{font-size:1.4rem;}
+
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);z-index:200;align-items:flex-end;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:22px;width:100%;max-width:680px;max-height:92dvh;overflow-y:auto;animation:slideUp 0.28s ease;}
+    @media(min-width:640px){.modal-overlay{align-items:center;padding:20px;}.modal{border-radius:20px;}}
+    @keyframes slideUp{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;}
+    .modal-close{background:none;border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;padding:4px;}
+
+    .stats-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px;scrollbar-width:none;}
+    .stats-strip::-webkit-scrollbar{display:none;}
+    .stat-chip{flex-shrink:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 16px;text-align:center;}
+    .stat-chip .num{font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--accent2);}
+    .stat-chip .lbl{font-size:0.7rem;color:var(--text3);margin-top:2px;}
+
+    .tag-check{display:none;}
+    .tag-check+label{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:100px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:0.78rem;font-weight:500;color:var(--text2);transition:all 0.15s;text-transform:none;letter-spacing:0;margin-bottom:0;}
+    .tag-check:checked+label{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2);}
+    .tag-check-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:5px;}
+
+    .fab{position:fixed;bottom:22px;right:22px;width:54px;height:54px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 18px rgba(59,130,246,0.4);z-index:150;transition:all 0.2s;display:flex;align-items:center;justify-content:center;}
+    .fab:hover{transform:scale(1.1);}
+
+    .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:100px;font-size:0.85rem;font-weight:500;z-index:500;opacity:0;transition:all 0.3s;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,0.4);}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+    .empty{text-align:center;padding:50px 20px;color:var(--text3);}
+    .empty-icon{font-size:2.5rem;margin-bottom:10px;opacity:0.5;}
+    .divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
+    .row-between{display:flex;justify-content:space-between;align-items:center;}
+    .date-range{display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;}
+    .date-range .form-group{margin-bottom:0;flex:1;min-width:130px;}
+    .filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+    .filter-chip{font-size:0.77rem;padding:5px 11px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all 0.15s;font-family:var(--sans);}
+    .filter-chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2);}
+    .emp-pill{padding:5px 13px;border-radius:100px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:0.8rem;color:var(--text2);transition:all 0.15s;font-family:var(--mono);}
+    .emp-pill.selected{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2);}
+    .emp-select-pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:5px;}
+    .card-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+    .card-row:last-child{border-bottom:none;}
+    .field-builder{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+    .invoice-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;background:rgba(239,68,68,0.1);color:#fca5a5;border:1px solid rgba(239,68,68,0.2);}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    .anim-in{animation:fadeIn 0.25s ease both;}
+
+    /* Firebase offline banner */
+    .offline-banner{display:none;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:10px 16px;margin:12px 20px;font-size:0.82rem;color:var(--yellow);align-items:center;gap:8px;}
+    .offline-banner.show{display:flex;}
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-logo">Pilot<span>.</span>Note</div>
+  <div class="spinner"></div>
+  <div class="loading-status" id="loading-status">Forbinder til database...</div>
+</div>
+
+<div id="app" style="display:none">
+
+  <div class="topbar">
+    <div class="logo">Pilot<span>.</span>Note</div>
+    <div class="topbar-right">
+      <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="showView('cards',null)">💳 Kort</button>
+        <button class="btn btn-ghost btn-sm" onclick="showExportModal()">⬇ Udtræk</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="offline-banner" id="offline-banner">⚡ Du er offline — ændringer gemmes lokalt og synkroniseres når forbindelsen genetableres.</div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showView('overview',this)">📊 Oversigt</button>
+    <button class="nav-btn" onclick="showView('log',this)">✍️ Notering</button>
+    <button class="nav-btn" onclick="showView('employees',this)">👥 Medarbejdere</button>
+    <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
+    <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
+    <button class="nav-btn" onclick="showView('settings',this)">⚙️ Indstillinger</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <div class="view active" id="view-overview">
+    <div class="view-title">Dagens overblik</div>
+    <div class="view-sub" id="today-date-label"></div>
+    <div class="stats-strip" id="stats-strip"></div>
+    <div class="card">
+      <div class="section-title">📅 Seneste noteringer</div>
+      <div id="recent-logs-list"></div>
+    </div>
+  </div>
+
+  <!-- NY NOTERING -->
+  <div class="view" id="view-log">
+    <div class="view-title">Ny notering</div>
+    <div class="view-sub">Vælg medarbejder og kategori</div>
+    <div class="card">
+      <div class="form-group"><label>Dato</label><input type="date" id="log-date" /></div>
+      <div class="form-group"><label>Medarbejder</label><div class="emp-select-pills" id="emp-pills-log"></div></div>
+      <div class="form-group"><label>Kategori</label><div class="cat-grid" id="cat-grid"></div></div>
+      <div id="log-extra-fields"></div>
+      <div class="form-group"><label>Kommentar (valgfri)</label><textarea id="log-comment" placeholder="Tilføj kommentar..."></textarea></div>
+      <button class="btn btn-primary" style="width:100%" id="save-log-btn" onclick="saveLog()">💾 Gem notering</button>
+    </div>
+  </div>
+
+  <!-- MEDARBEJDERE -->
+  <div class="view" id="view-employees">
+    <div class="row-between" style="margin-bottom:18px">
+      <div><div class="view-title">Medarbejdere</div><div style="font-size:0.85rem;color:var(--text2)">Administrer alle chauffører</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="openImportModal()">📥 Importer Excel</button>
+        <button class="btn btn-primary btn-sm" onclick="openEmpModal()">+ Ny</button>
+      </div>
+    </div>
+    <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Søg navn eller tur nr..." id="emp-search" oninput="renderEmployees()" /></div>
+    <div id="emp-list"></div>
+  </div>
+
+  <!-- HISTORIK -->
+  <div class="view" id="view-history">
+    <div class="view-title">Historik</div>
+    <div class="date-range">
+      <div class="form-group"><label>Fra dato</label><input type="date" id="hist-from" onchange="renderHistory()" /></div>
+      <div class="form-group"><label>Til dato</label><input type="date" id="hist-to" onchange="renderHistory()" /></div>
+      <div class="form-group" style="min-width:150px"><label>Medarbejder</label><select id="hist-emp" onchange="renderHistory()"><option value="">Alle</option></select></div>
+    </div>
+    <div class="filter-bar" id="cat-filter-bar"></div>
+    <div id="log-list"></div>
+  </div>
+
+  <!-- KORT & BRIKKER -->
+  <div class="view" id="view-cards">
+    <div class="view-title">Kort & Brikker</div>
+    <div class="view-sub">Brændstofkort, ladebrikker, bilnøgler og Evotec brikker</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn btn-primary btn-sm" onclick="openCardModal()">+ Tildel kort/brik</button>
+    </div>
+    <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Søg medarbejder..." id="card-search" oninput="renderCards()" /></div>
+    <div class="filter-bar">
+      <button class="filter-chip active" onclick="setCardFilter('',this)">Alle</button>
+      <button class="filter-chip" onclick="setCardFilter('fuel',this)">⛽ Brændstofkort</button>
+      <button class="filter-chip" onclick="setCardFilter('charge',this)">🔋 Ladebrik</button>
+      <button class="filter-chip" onclick="setCardFilter('key',this)">🔑 Bilnøgle</button>
+      <button class="filter-chip" onclick="setCardFilter('evotec',this)">📟 Evotec</button>
+    </div>
+    <div id="cards-list"></div>
+  </div>
+
+  <!-- INDSTILLINGER -->
+  <div class="view" id="view-settings">
+    <div class="view-title">Indstillinger</div>
+    <div class="view-sub">Tilpas kategorier og data</div>
+    <div class="card">
+      <div class="section-title">🏷️ Egne kategorier</div>
+      <div id="custom-cats-list"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="openCustomCatModal()">+ Ny kategori</button>
+    </div>
+    <div class="card">
+      <div class="section-title">☁️ Firebase status</div>
+      <p style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">Data synkroniseres automatisk i realtid via Firebase Firestore. Alle enheder ser samme data.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="exportBackup()">💾 Backup til JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restore-input').click()">📤 Gendan fra JSON</button>
+        <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(event)" />
+      </div>
+    </div>
+  </div>
+
+</div><!-- end #app -->
+
+<button class="fab" onclick="showView('log',document.querySelectorAll('.nav-btn')[1])">+</button>
+
+<!-- MODALS -->
+
+<!-- MEDARBEJDER -->
+<div class="modal-overlay" id="emp-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="emp-modal-title">Opret medarbejder</span><button class="modal-close" onclick="closeModal('emp-modal')">✕</button></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Tur nr.</label><input type="text" id="emp-tur" placeholder="T-42" /></div>
+      <div class="form-group"><label>Fulde navn</label><input type="text" id="emp-name-input" placeholder="Fornavn Efternavn" /></div>
+    </div>
+    <hr class="divider" />
+    <div class="section-title">📅 Datoer</div>
+    <div class="grid-2">
+      <div class="form-group"><label>Oplæring startdato</label><input type="date" id="emp-training-start" /></div>
+      <div class="form-group"><label>Første køredag</label><input type="date" id="emp-first-drive" /></div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group"><label>Sidste køredato</label><input type="date" id="emp-last-drive" /></div>
+      <div class="form-group"></div>
+    </div>
+    <div class="form-group"><label>Kommentar</label><textarea id="emp-note" placeholder="Evt. noter..."></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('emp-modal')">Annuller</button>
+      <button class="btn btn-primary" style="flex:1" id="save-emp-btn" onclick="saveEmployee()">Gem</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT EXCEL -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div class="modal-title"><span>📥 Importer medarbejdere</span><button class="modal-close" onclick="closeModal('import-modal')">✕</button></div>
+    <p style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">Excel-filen skal have kolonnerne <strong>Navn</strong> og <strong>Tur nr.</strong></p>
+    <div class="form-group"><label>Vælg Excel-fil (.xlsx / .xls / .csv)</label><input type="file" id="import-file" accept=".xlsx,.xls,.csv" /></div>
+    <div id="import-preview" style="margin-bottom:14px;font-size:0.82rem;overflow-x:auto"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('import-modal')">Annuller</button>
+      <button class="btn btn-primary" style="flex:1" id="do-import-btn" onclick="doImport()">Importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- KORT -->
+<div class="modal-overlay" id="card-modal">
+  <div class="modal">
+    <div class="modal-title"><span>💳 Tildel kort / brik</span><button class="modal-close" onclick="closeModal('card-modal')">✕</button></div>
+    <div class="form-group"><label>Medarbejder</label><select id="card-emp-sel"><option value="">Vælg...</option></select></div>
+    <div class="form-group"><label>Type</label>
+      <select id="card-type-sel" onchange="updateCardFields()">
+        <option value="fuel">⛽ Brændstofkort</option>
+        <option value="charge">🔋 Ladebrik</option>
+        <option value="key">🔑 Ekstra bilnøgle</option>
+        <option value="evotec">📟 Evotec brik</option>
+      </select>
+    </div>
+    <div id="card-extra-fields"><div class="form-group"><label>Kortnummer / ID</label><input type="text" id="card-number" placeholder="Fx 1234-5678" /></div></div>
+    <div class="form-group"><label>Dato tildelt</label><input type="date" id="card-date" /></div>
+    <div class="form-group"><label>Kommentar</label><input type="text" id="card-note" placeholder="Evt. note..." /></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('card-modal')">Annuller</button>
+      <button class="btn btn-primary" style="flex:1" id="save-card-btn" onclick="saveCard()">Gem</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CATEGORY -->
+<div class="modal-overlay" id="custom-cat-modal">
+  <div class="modal">
+    <div class="modal-title"><span id="cc-modal-title">Ny kategori</span><button class="modal-close" onclick="closeModal('custom-cat-modal')">✕</button></div>
+    <div class="grid-2">
+      <div class="form-group"><label>Ikon (emoji)</label><input type="text" id="cc-icon" placeholder="📝" maxlength="4" /></div>
+      <div class="form-group"><label>Navn</label><input type="text" id="cc-name" placeholder="Kategori navn" /></div>
+    </div>
+    <div class="form-group"><label>Farve</label>
+      <select id="cc-color">
+        <option value="blue">Blå</option><option value="green">Grøn</option><option value="orange">Orange</option>
+        <option value="red">Rød</option><option value="purple">Lilla</option><option value="cyan">Cyan</option>
+        <option value="yellow">Gul</option><option value="gray">Grå</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Felter</label>
+      <div id="cc-fields-list"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addCCField()">+ Tilføj felt</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('custom-cat-modal')">Annuller</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveCustomCat()">Gem kategori</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal">
+    <div class="modal-title"><span>⬇ Udtræk data</span><button class="modal-close" onclick="closeModal('export-modal')">✕</button></div>
+    <div class="date-range">
+      <div class="form-group"><label>Fra dato</label><input type="date" id="exp-from" /></div>
+      <div class="form-group"><label>Til dato</label><input type="date" id="exp-to" /></div>
+    </div>
+    <div class="form-group"><label>Medarbejder</label><select id="exp-emp"><option value="">Alle medarbejdere</option></select></div>
+    <div class="form-group"><label>Inkluder</label>
+      <div class="tag-check-grid">
+        <input type="checkbox" class="tag-check" id="exp-include-logs" checked /><label for="exp-include-logs">Noteringer</label>
+        <input type="checkbox" class="tag-check" id="exp-include-cards" checked /><label for="exp-include-cards">Kort & Brikker</label>
+        <input type="checkbox" class="tag-check" id="exp-include-invoices" checked /><label for="exp-include-invoices">Regninger</label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-green" style="flex:1" onclick="exportExcel()">📊 Excel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="exportPDF()">📄 PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMP DETAIL -->
+<div class="modal-overlay" id="log-detail-modal">
+  <div class="modal">
+    <div class="modal-title"><span>👤 Medarbejder profil</span><button class="modal-close" onclick="closeModal('log-detail-modal')">✕</button></div>
+    <div id="log-detail-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════
+//  FIREBASE — modular v10, imported directly as ESM
+// ═══════════════════════════════════════════════════
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {
+  getFirestore, collection, doc,
+  onSnapshot, addDoc, setDoc, updateDoc, deleteDoc,
+  orderBy, query, writeBatch,
+  enableIndexedDbPersistence
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDLkrie4-mfYBChdLx7XN6vXdt5eKzpol4",
+  authDomain:        "pilot-note.firebaseapp.com",
+  projectId:         "pilot-note",
+  storageBucket:     "pilot-note.firebasestorage.app",
+  messagingSenderId: "883704620048",
+  appId:             "1:883704620048:web:465a5019a4263979765695"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+enableIndexedDbPersistence(db).catch(e => console.warn('Persistence:', e.code));
+
+// ── Firestore helpers ──────────────────────────────
+const colRef   = name          => collection(db, name);
+const docRef   = (name, id)    => doc(db, name, id);
+const _add     = (name, data)  => addDoc(colRef(name), data);
+const _update  = (name, id, d) => updateDoc(docRef(name, id), d);
+const _delete  = (name, id)    => deleteDoc(docRef(name, id));
+const _snap    = (name, ord, cb, eb) =>
+  onSnapshot(query(colRef(name), ...ord), cb, eb);
+const _newBatch = () => writeBatch(db);
+const _batchSet    = (b, name, id, d) => b.set(docRef(name, id), d, {merge:true});
+const _batchUpdate = (b, name, id, d) => b.update(docRef(name, id), d);
+const _batchDelete = (b, name, id)    => b.delete(docRef(name, id));
+const _newDocRef   = name            => doc(colRef(name));
+
+// ═══════════════════════════════════════════════════
+//  IN-MEMORY STATE
+// ═══════════════════════════════════════════════════
+let employees  = [];
+let logs       = [];
+let cards      = [];
+let customCats = [];
+let _listenersReady = 0;
+let _appShown = false;
+
+let editingEmpId=null, editingCCId=null;
+let selectedCategory=null, selectedEmpId=null;
+let _cardFilter='', _catFilter='';
+
+// ═══════════════════════════════════════════════════
+//  SYNC STATUS
+// ═══════════════════════════════════════════════════
+const syncDot   = () => document.getElementById('sync-dot');
+const syncLabel = () => document.getElementById('sync-label');
+function setSyncing(){ if(syncDot()){syncDot().className='sync-dot syncing'; syncLabel().textContent='Synkroniserer...';} }
+function setSynced() { if(syncDot()){syncDot().className='sync-dot';         syncLabel().textContent='Live';} }
+function setOffline(){ if(syncDot()){syncDot().className='sync-dot offline'; syncLabel().textContent='Offline';} }
+window.addEventListener('online',  () => { setSynced(); document.getElementById('offline-banner')?.classList.remove('show'); });
+window.addEventListener('offline', () => { setOffline(); document.getElementById('offline-banner')?.classList.add('show'); });
+if (!navigator.onLine) setOffline();
+
+// ═══════════════════════════════════════════════════
+//  REAL-TIME LISTENERS
+// ═══════════════════════════════════════════════════
+function startListeners() {
+  document.getElementById('loading-status').textContent = 'Indlæser data...';
+
+  _snap('employees', [orderBy('name')], snap => {
+    employees = snap.docs.map(d => ({id:d.id,...d.data()}));
+    _onDataReady();
+    renderEmployees(); renderEmpPills(); populateEmpSelects();
+    renderOverview(); renderHistory();
+  }, err => console.error('employees:', err));
+
+  _snap('logs', [orderBy('date','desc'), orderBy('createdAt','desc')], snap => {
+    logs = snap.docs.map(d => ({id:d.id,...d.data()}));
+    _onDataReady();
+    renderOverview(); renderHistory(); renderEmployees();
+  }, err => console.error('logs:', err));
+
+  _snap('cards', [orderBy('date','desc')], snap => {
+    cards = snap.docs.map(d => ({id:d.id,...d.data()}));
+    _onDataReady();
+    renderCards(); renderEmployees();
+  }, err => console.error('cards:', err));
+
+  _snap('customCats', [orderBy('label')], snap => {
+    customCats = snap.docs.map(d => ({id:d.id,...d.data()}));
+    _onDataReady();
+    renderCustomCatsList(); renderCatGrid();
+  }, err => console.error('customCats:', err));
+}
+
+function _onDataReady() {
+  _listenersReady++;
+  if (_listenersReady >= 4 && !_appShown) showApp();
+}
+setTimeout(() => { if (!_appShown) showApp(); }, 5000);
+
+function showApp() {
+  _appShown = true;
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initUI();
+}
+
+// ═══════════════════════════════════════════════════
+//  INIT UI
+// ═══════════════════════════════════════════════════
+function initUI() {
+  const today = todayStr();
+  const mo = new Date(Date.now()-30*864e5).toISOString().split('T')[0];
+  document.getElementById('log-date').value   = today;
+  document.getElementById('hist-from').value  = mo;
+  document.getElementById('hist-to').value    = today;
+  document.getElementById('exp-from').value   = mo;
+  document.getElementById('exp-to').value     = today;
+  document.getElementById('card-date').value  = today;
+  document.getElementById('today-date-label').textContent =
+    new Date().toLocaleDateString('da-DK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.querySelectorAll('.modal-overlay').forEach(m =>
+    m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+  document.getElementById('import-file').addEventListener('change', previewImport);
+  renderCatGrid(); renderOverview(); renderHistory(); renderCards();
+}
+
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+
+// ═══════════════════════════════════════════════════
+//  BUILT-IN CATEGORIES
+// ═══════════════════════════════════════════════════
+const BUILTIN = [
+  {id:'late',icon:'⏰',label:'Mødt forsent',color:'orange',fields:[{id:'minutes',label:'Minutter forsinket',type:'number',placeholder:'15'}]},
+  {id:'sick',icon:'🤒',label:'Sygemeldt',color:'red',fields:[]},
+  {id:'noshow',icon:'🚫',label:'Møder ikke op',color:'red',fields:[]},
+  {id:'help_delivery',icon:'📦',label:'Hjælp m. levering',color:'blue',fields:[{id:'hours',label:'Timer',type:'number',placeholder:'2'},{id:'stops',label:'Antal stop',type:'number',placeholder:'10'}]},
+  {id:'vehicle_damage',icon:'🚗',label:'Skade på bil',color:'red',fields:[{id:'damage_desc',label:'Beskriv skaden',type:'text',placeholder:'Ridse venstre side'}]},
+  {id:'help_pickup',icon:'🔄',label:'Hjælp m. afhentning',color:'cyan',fields:[{id:'pickup_count',label:'Antal afhentninger',type:'number',placeholder:'5'}]},
+  {id:'materials',icon:'📋',label:'Materialer',color:'purple',fields:[{id:'mat_items',label:'Materialer udleveret',type:'tags',options:['Film/folie','Blå strips','Sækkevogn','Palleløfter','Uniform','Brandslukker','Spildkit']}]},
+  {id:'wrong_tour',icon:'🗺️',label:'Forkert tur nr.',color:'yellow',fields:[{id:'wrong_tur',label:'Scannet tur nr.',type:'text',placeholder:'T-99'}]},
+  {id:'fuel_card',icon:'⛽',label:'Ny brændstofkort/brik',color:'green',fields:[{id:'card_type',label:'Type',type:'select',options:['Brændstofkort','Ladebrik','Begge']}]},
+  {id:'car_rental',icon:'🔑',label:'Lejet bil fra os',color:'blue',fields:[{id:'rental_from',label:'Fra dato',type:'date'},{id:'rental_to',label:'Til dato',type:'date'},{id:'car_reg',label:'Reg. nr.',type:'text',placeholder:'AB12345'}]},
+  {id:'new_employee',icon:'🆕',label:'Ny medarbejder info',color:'green',fields:[{id:'training_start',label:'Oplæring startdato',type:'date'},{id:'first_drive',label:'Første køredag',type:'date'}]},
+  {id:'external_drive',icon:'🚛',label:'Kørsel for ekstern vognmand',color:'cyan',fields:[{id:'ext_company',label:'Vognmand / firma',type:'text',placeholder:'Firma ApS'},{id:'ext_hours',label:'Timer kørt',type:'number',placeholder:'8'},{id:'ext_date',label:'Dato',type:'date'}]},
+  {id:'invoice',icon:'💸',label:'Regning modtaget',color:'red',fields:[{id:'inv_type',label:'Type',type:'select',options:['Bøde','Værksted','Vejhjælp','Selvrisiko','Andet']},{id:'inv_sender',label:'Afsender',type:'text',placeholder:'Fx Rigspolitiet'},{id:'inv_amount',label:'Beløb (kr.)',type:'number',placeholder:'1500'},{id:'inv_ref',label:'Reference',type:'text',placeholder:'Valgfri'}]},
+  {id:'other',icon:'📝',label:'Andet',color:'gray',fields:[]},
+];
+function allCats(){ return [...BUILTIN,...customCats.map(c=>({...c,isCustom:true}))]; }
+function catMap(){  return Object.fromEntries(allCats().map(c=>[c.id,c])); }
+
+// ═══════════════════════════════════════════════════
+//  VIEWS
+// ═══════════════════════════════════════════════════
+function showView(id,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id==='overview') renderOverview();
+  if(id==='history')  renderHistory();
+  if(id==='log')      { renderEmpPills(); renderCatGrid(); }
+  if(id==='cards')    renderCards();
+  if(id==='settings') renderCustomCatsList();
+}
+window.showView = showView;
+
+// ═══════════════════════════════════════════════════
+//  CATEGORY GRID
+// ═══════════════════════════════════════════════════
+function renderCatGrid(){
+  const el = document.getElementById('cat-grid'); if(!el) return;
+  el.innerHTML = allCats().map(c=>`
+    <button class="cat-btn ${selectedCategory===c.id?'selected':''}" onclick="selectCategory('${c.id}')">
+      <span class="cat-icon">${c.icon}</span>${c.label}
+    </button>`).join('');
+}
+window.selectCategory = function(id){ selectedCategory=id; renderCatGrid(); renderExtraFields(); };
+
+function renderExtraFields(){
+  const cat=catMap()[selectedCategory];
+  if(!cat){ document.getElementById('log-extra-fields').innerHTML=''; return; }
+  document.getElementById('log-extra-fields').innerHTML=(cat.fields||[]).map(f=>{
+    let inner='';
+    if(f.type==='tags'){
+      inner=`<div class="tag-check-grid">`+(f.options||[]).map(o=>`
+        <input type="checkbox" class="tag-check" id="t_${o.replace(/\W/g,'_')}" name="${f.id}" value="${o}"/>
+        <label for="t_${o.replace(/\W/g,'_')}">${o}</label>`).join('')+`</div>`;
+    } else if(f.type==='select'){
+      inner=`<select id="field_${f.id}">`+(f.options||[]).map(o=>`<option>${o}</option>`).join('')+`</select>`;
+    } else {
+      inner=`<input type="${f.type||'text'}" id="field_${f.id}" placeholder="${f.placeholder||''}" />`;
+    }
+    return `<div class="form-group"><label>${f.label}</label>${inner}</div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+//  EMP PILLS
+// ═══════════════════════════════════════════════════
+function renderEmpPills(){
+  const c=document.getElementById('emp-pills-log'); if(!c) return;
+  c.innerHTML = employees.length
+    ? employees.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+    : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
+}
+window.selectEmp = function(id){ selectedEmpId=id; renderEmpPills(); };
+
+// ═══════════════════════════════════════════════════
+//  SAVE LOG
+// ═══════════════════════════════════════════════════
+window.saveLog = async function() {
+  if(!selectedEmpId)   { toast('⚠️ Vælg en medarbejder'); return; }
+  if(!selectedCategory){ toast('⚠️ Vælg en kategori');    return; }
+  const btn=document.getElementById('save-log-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+  const cat=catMap()[selectedCategory];
+  const extra={};
+  (cat.fields||[]).forEach(f=>{
+    if(f.type==='tags') extra[f.id]=[...document.querySelectorAll(`input[name="${f.id}"]:checked`)].map(i=>i.value);
+    else extra[f.id]=document.getElementById('field_'+f.id)?.value||'';
+  });
+  try {
+    setSyncing();
+    await _add('logs',{
+      empId:selectedEmpId,
+      date: document.getElementById('log-date').value,
+      category:selectedCategory, extra,
+      comment: document.getElementById('log-comment').value,
+      createdAt: new Date().toISOString()
+    });
+    setSynced();
+    selectedCategory=null; selectedEmpId=null;
+    document.getElementById('log-comment').value='';
+    document.getElementById('log-extra-fields').innerHTML='';
+    renderCatGrid(); renderEmpPills();
+    toast('✅ Notering gemt!');
+  } catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='💾 Gem notering';
+};
+
+// ═══════════════════════════════════════════════════
+//  DELETE LOG
+// ═══════════════════════════════════════════════════
+window.deleteLog = async function(id){
+  if(!confirm('Slet denne notering?')) return;
+  try{ setSyncing(); await _delete('logs',id); setSynced(); toast('🗑️ Slettet'); }
+  catch(e){ toast('❌ '+e.message); }
+};
+
+// ═══════════════════════════════════════════════════
+//  EMPLOYEES
+// ═══════════════════════════════════════════════════
+function renderEmployees(){
+  const q=(document.getElementById('emp-search')?.value||'').toLowerCase();
+  const list=document.getElementById('emp-list'); if(!list) return;
+  const filtered=employees.filter(e=>e.name.toLowerCase().includes(q)||e.tur.toLowerCase().includes(q));
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div style="font-size:0.9rem">${q?'Ingen resultater':'Ingen medarbejdere endnu'}</div></div>`;
+    return;
+  }
+  list.innerHTML=filtered.map(e=>{
+    const ini=e.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const cnt=logs.filter(l=>l.empId===e.id).length;
+    const empCards=cards.filter(c=>c.empId===e.id&&c.active);
+    const cardIcons=empCards.map(c=>({fuel:'⛽',charge:'🔋',key:'🔑',evotec:'📟'}[c.type]||'💳')).join('');
+    return`<div class="emp-card" onclick="openEmpDetail('${e.id}')">
+      <div class="emp-avatar">${ini}</div>
+      <div class="emp-info">
+        <div class="emp-name">${e.name} <span style="font-size:0.9rem">${cardIcons}</span></div>
+        <div class="emp-tur">Tur ${e.tur} · ${cnt} noteringer${e.lastDrive?` <span style="color:var(--red)">· Slut: ${fmtDate(e.lastDrive)}</span>`:''}</div>
+        ${e.trainingStart?`<div style="font-size:0.72rem;color:var(--text3)">📚 ${fmtDate(e.trainingStart)}${e.firstDrive?' · 🚗 '+fmtDate(e.firstDrive):''}</div>`:''}
+      </div>
+      <div class="emp-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEmpModal('${e.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteEmp('${e.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.renderEmployees = renderEmployees;
+
+window.openEmpModal = function(id){
+  editingEmpId=id||null;
+  const e=id?employees.find(x=>x.id===id):null;
+  document.getElementById('emp-modal-title').textContent=e?'Rediger medarbejder':'Opret medarbejder';
+  document.getElementById('emp-tur').value              = e?.tur||'';
+  document.getElementById('emp-name-input').value       = e?.name||'';
+  document.getElementById('emp-training-start').value   = e?.trainingStart||'';
+  document.getElementById('emp-first-drive').value      = e?.firstDrive||'';
+  document.getElementById('emp-last-drive').value       = e?.lastDrive||'';
+  document.getElementById('emp-note').value             = e?.note||'';
+  openModal('emp-modal');
+};
+
+window.saveEmployee = async function(){
+  const tur  = document.getElementById('emp-tur').value.trim();
+  const name = document.getElementById('emp-name-input').value.trim();
+  if(!tur||!name){ toast('⚠️ Udfyld tur nr. og navn'); return; }
+  const btn=document.getElementById('save-emp-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+  const data={tur,name,
+    trainingStart: document.getElementById('emp-training-start').value,
+    firstDrive:    document.getElementById('emp-first-drive').value,
+    lastDrive:     document.getElementById('emp-last-drive').value,
+    note:          document.getElementById('emp-note').value
+  };
+  try{
+    setSyncing();
+    if(editingEmpId) await _update('employees', editingEmpId, data);
+    else             await _add('employees', {...data, createdAt:new Date().toISOString()});
+    setSynced();
+    closeModal('emp-modal');
+    toast(editingEmpId?'✅ Opdateret':'✅ Oprettet');
+    editingEmpId=null;
+  }catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='Gem';
+};
+
+window.deleteEmp = async function(id){
+  if(!confirm('Slet medarbejder? Alle noteringer og kort slettes også.')) return;
+  try{
+    setSyncing();
+    const b=_newBatch();
+    _batchDelete(b,'employees',id);
+    logs.filter(l=>l.empId===id).forEach(l=>_batchDelete(b,'logs',l.id));
+    cards.filter(c=>c.empId===id).forEach(c=>_batchDelete(b,'cards',c.id));
+    await b.commit();
+    setSynced(); toast('🗑️ Slettet');
+  }catch(e){ toast('❌ '+e.message); }
+};
+
+window.openEmpDetail = function(id){
+  const emp=employees.find(e=>e.id===id); if(!emp) return;
+  const empLogs=logs.filter(l=>l.empId===id);
+  const empCards=cards.filter(c=>c.empId===id);
+  const cm=catMap();
+  document.getElementById('log-detail-content').innerHTML=`
+    <div style="margin-bottom:16px">
+      <div style="font-size:1.1rem;font-weight:700">${emp.name}</div>
+      <div style="color:var(--accent2);font-family:var(--mono);margin-bottom:8px">Tur ${emp.tur}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:0.8rem;color:var(--text3)">
+        ${emp.trainingStart?`<span>📚 Oplæring: ${fmtDate(emp.trainingStart)}</span>`:''}
+        ${emp.firstDrive   ?`<span>🚗 Første kørsel: ${fmtDate(emp.firstDrive)}</span>`:''}
+        ${emp.lastDrive    ?`<span style="color:var(--red)">🏁 Sidste kørsel: ${fmtDate(emp.lastDrive)}</span>`:''}
+      </div>
+      ${emp.note?`<div style="margin-top:8px;font-size:0.83rem;color:var(--text2);font-style:italic">${emp.note}</div>`:''}
+    </div>
+    ${empCards.length?`<div class="section-title">💳 Kort & brikker</div>
+      ${empCards.map(c=>`<div class="card-row">
+        <span>${{fuel:'⛽ Brændstofkort',charge:'🔋 Ladebrik',key:'🔑 Bilnøgle',evotec:'📟 Evotec'}[c.type]||c.type}${c.number?' · '+c.number:''}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${c.active?'<span class="badge badge-green">Aktiv</span>':'<span class="badge badge-gray">Afleveret</span>'}
+          <span style="font-size:0.75rem;color:var(--text3)">${fmtDate(c.date)}</span>
+        </div></div>`).join('')}<hr class="divider" />`:''}
+    <div class="section-title">📋 Noteringer (${empLogs.length})</div>
+    ${empLogs.slice(0,25).map(l=>renderLogItem(l,cm,true)).join('')
+      ||'<div class="empty" style="padding:20px 0"><div style="font-size:0.9rem">Ingen noteringer</div></div>'}
+  `;
+  openModal('log-detail-modal');
+};
+
+// ═══════════════════════════════════════════════════
+//  IMPORT EXCEL
+// ═══════════════════════════════════════════════════
+window.openImportModal = function(){
+  document.getElementById('import-file').value='';
+  document.getElementById('import-preview').innerHTML='';
+  window._importRows=null;
+  openModal('import-modal');
+};
+
+function previewImport(){
+  const f=document.getElementById('import-file').files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      window._importRows=rows;
+      const sample=rows.slice(0,5);
+      document.getElementById('import-preview').innerHTML=
+        `<p style="color:var(--text2);margin-bottom:8px">Fundet <strong>${rows.length}</strong> rækker:</p>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <tr>${Object.keys(sample[0]).map(k=>`<th style="padding:5px 8px;background:var(--surface2);color:var(--text2);font-size:0.75rem">${k}</th>`).join('')}</tr>
+        ${sample.map(r=>`<tr>${Object.values(r).map(v=>`<td style="padding:5px 8px;border-bottom:1px solid var(--border);font-size:0.8rem">${v}</td>`).join('')}</tr>`).join('')}
+        </table></div>`;
+    }catch(err){ document.getElementById('import-preview').innerHTML=`<p style="color:var(--red)">Fejl: ${err.message}</p>`; }
+  };
+  reader.readAsBinaryString(f);
+}
+
+window.doImport = async function(){
+  const rows=window._importRows;
+  if(!rows||!rows.length){ toast('⚠️ Ingen data'); return; }
+  const keys=Object.keys(rows[0]);
+  const nameKey=keys.find(k=>/navn|name/i.test(k));
+  const turKey =keys.find(k=>/tur|tour|nr\.?$|rute|route/i.test(k));
+  if(!nameKey||!turKey){ toast('⚠️ Kan ikke finde Navn + Tur kolonner'); return; }
+  const btn=document.getElementById('do-import-btn');
+  btn.disabled=true; btn.textContent='Importerer...';
+  let added=0, skip=0;
+  const b=_newBatch();
+  rows.forEach(r=>{
+    const name=String(r[nameKey]||'').trim();
+    const tur =String(r[turKey] ||'').trim();
+    if(!name||!tur||employees.find(e=>e.tur===tur)){ skip++; return; }
+    const ref=_newDocRef('employees');
+    b.set(ref,{tur,name,createdAt:new Date().toISOString()});
+    added++;
+  });
+  try{
+    setSyncing(); await b.commit(); setSynced();
+    closeModal('import-modal');
+    toast(`✅ Importeret ${added} (${skip} sprunget over)`);
+  }catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='Importer';
+};
+
+// ═══════════════════════════════════════════════════
+//  CARDS
+// ═══════════════════════════════════════════════════
+window.updateCardFields = function(){
+  const t=document.getElementById('card-type-sel').value;
+  const lbl={fuel:'Kortnummer',charge:'Brik ID',key:'Nøglenummer (valgfri)',evotec:'Evotec ID'}[t]||'ID';
+  document.getElementById('card-extra-fields').innerHTML=
+    `<div class="form-group"><label>${lbl}</label><input type="text" id="card-number" placeholder="Fx 1234-5678" /></div>`;
+};
+
+window.openCardModal = function(){
+  document.getElementById('card-emp-sel').innerHTML='<option value="">Vælg medarbejder...</option>'+
+    employees.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+  document.getElementById('card-date').value=''; document.getElementById('card-date').value=todayStr();
+  document.getElementById('card-note').value='';
+  document.getElementById('card-type-sel').value='fuel';
+  window.updateCardFields();
+  openModal('card-modal');
+};
+
+window.saveCard = async function(){
+  const empId=document.getElementById('card-emp-sel').value;
+  const type =document.getElementById('card-type-sel').value;
+  if(!empId){ toast('⚠️ Vælg medarbejder'); return; }
+  const number=document.getElementById('card-number')?.value?.trim()||'';
+  const date  =document.getElementById('card-date').value;
+  const note  =document.getElementById('card-note').value;
+  const btn=document.getElementById('save-card-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+  try{
+    setSyncing();
+    const b=_newBatch();
+    if(type==='fuel'||type==='charge'){
+      cards.filter(c=>c.empId===empId&&c.type===type&&c.active)
+        .forEach(c=>_batchUpdate(b,'cards',c.id,{active:false,returnedDate:date}));
+    }
+    const ref=_newDocRef('cards');
+    b.set(ref,{empId,type,number,date,note,active:true,createdAt:new Date().toISOString()});
+    await b.commit();
+    setSynced(); closeModal('card-modal'); toast('✅ Kort/brik registreret!');
+  }catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='Gem';
+};
+
+window.returnCard = async function(id){
+  try{ setSyncing(); await _update('cards',id,{active:false,returnedDate:todayStr()}); setSynced(); toast('↩️ Markeret afleveret'); }
+  catch(e){ toast('❌ '+e.message); }
+};
+
+window.setCardFilter = function(f,btn){
+  _cardFilter=f;
+  document.querySelectorAll('#view-cards .filter-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+};
+
+function renderCards(){
+  const q=(document.getElementById('card-search')?.value||'').toLowerCase();
+  const list=document.getElementById('cards-list'); if(!list) return;
+  const filtered=cards.filter(c=>{
+    if(_cardFilter&&c.type!==_cardFilter) return false;
+    const emp=employees.find(e=>e.id===c.empId);
+    if(q&&emp&&!emp.name.toLowerCase().includes(q)&&!emp.tur.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if(!filtered.length){ list.innerHTML=`<div class="empty"><div class="empty-icon">💳</div><div style="font-size:0.9rem">Ingen kort/brikker fundet</div></div>`; return; }
+  const tl={fuel:'Brændstofkort',charge:'Ladebrik',key:'Ekstra bilnøgle',evotec:'Evotec brik'};
+  const tc={fuel:'green',charge:'cyan',key:'yellow',evotec:'purple'};
+  const ti={fuel:'⛽',charge:'🔋',key:'🔑',evotec:'📟'};
+  list.innerHTML=filtered.map(c=>{
+    const emp=employees.find(e=>e.id===c.empId)||{name:'Ukendt',tur:'-'};
+    return`<div class="log-item">
+      <div class="log-header">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
+          <span class="badge badge-${tc[c.type]||'gray'}">${ti[c.type]||'💳'} ${tl[c.type]||c.type}</span>
+          <span style="font-size:0.82rem;color:var(--text2)"><strong>${emp.name}</strong> <span style="color:var(--text3)">(${emp.tur})</span></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${c.active?'<span class="badge badge-green">Aktiv</span>':'<span class="badge badge-gray">Afleveret</span>'}
+          <span class="log-meta">${fmtDate(c.date)}</span>
+          ${c.active?`<button class="btn btn-danger btn-sm btn-icon" onclick="returnCard('${c.id}')">↩️</button>`:''}
+        </div>
+      </div>
+      ${c.number?`<div class="log-details">Nr./ID: <strong>${c.number}</strong></div>`:''}
+      ${c.returnedDate?`<div class="log-details" style="color:var(--text3)">Afleveret: ${fmtDate(c.returnedDate)}</div>`:''}
+      ${c.note?`<div class="log-details" style="font-style:italic;color:var(--text3)">"${c.note}"</div>`:''}
+    </div>`;
+  }).join('');
+}
+window.renderCards = renderCards;
+
+// ═══════════════════════════════════════════════════
+//  CUSTOM CATEGORIES
+// ═══════════════════════════════════════════════════
+function renderCustomCatsList(){
+  const el=document.getElementById('custom-cats-list'); if(!el) return;
+  if(!customCats.length){ el.innerHTML='<p style="font-size:0.85rem;color:var(--text3)">Ingen egne kategorier endnu.</p>'; return; }
+  el.innerHTML=customCats.map(c=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:1.3rem">${c.icon}</span>
+        <div><div style="font-size:0.9rem;font-weight:600">${c.label}</div>
+          <div style="font-size:0.75rem;color:var(--text3)">${(c.fields||[]).length} felter</div></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openCustomCatModal('${c.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomCat('${c.id}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+window.renderCustomCatsList = renderCustomCatsList;
+
+let _ccFields=[];
+window.openCustomCatModal = function(id){
+  editingCCId=id||null;
+  const cc=id?customCats.find(c=>c.id===id):null;
+  document.getElementById('cc-modal-title').textContent=cc?'Rediger kategori':'Ny kategori';
+  document.getElementById('cc-icon').value  = cc?.icon||'📝';
+  document.getElementById('cc-name').value  = cc?.label||'';
+  document.getElementById('cc-color').value = cc?.color||'blue';
+  _ccFields=cc?.fields?JSON.parse(JSON.stringify(cc.fields)):[];
+  renderCCFields();
+  openModal('custom-cat-modal');
+};
+
+function renderCCFields(){
+  const el=document.getElementById('cc-fields-list'); if(!el) return;
+  if(!_ccFields.length){ el.innerHTML='<p style="font-size:0.8rem;color:var(--text3);margin-bottom:6px">Ingen felter endnu.</p>'; return; }
+  el.innerHTML=_ccFields.map((f,i)=>`
+    <div class="field-builder">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:0.82rem;font-weight:600;color:var(--text2)">Felt ${i+1}</span>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="removeCCField(${i})">✕</button>
+      </div>
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:8px"><label>Navn</label>
+          <input type="text" value="${f.label||''}" oninput="_ccFields[${i}].label=this.value" placeholder="Fx Beløb"/></div>
+        <div class="form-group" style="margin-bottom:8px"><label>Type</label>
+          <select onchange="_ccFields[${i}].type=this.value;renderCCFields()">
+            ${['text','number','date','select','tags'].map(t=>`<option${t===f.type?' selected':''}>${t}</option>`).join('')}
+          </select></div>
+      </div>
+      ${f.type==='select'||f.type==='tags'
+        ?`<div class="form-group" style="margin-bottom:0"><label>Muligheder (kommasepareret)</label>
+           <input type="text" value="${(f.options||[]).join(',')}" oninput="_ccFields[${i}].options=this.value.split(',').map(s=>s.trim())" placeholder="Valg 1, Valg 2"/></div>`
+        :`<div class="form-group" style="margin-bottom:0"><label>Placeholder</label>
+           <input type="text" value="${f.placeholder||''}" oninput="_ccFields[${i}].placeholder=this.value"/></div>`}
+    </div>`).join('');
+}
+window.renderCCFields = renderCCFields;
+window.addCCField    = function(){ _ccFields.push({id:'cf_'+Date.now(),label:'',type:'text',placeholder:''}); renderCCFields(); };
+window.removeCCField = function(i){ _ccFields.splice(i,1); renderCCFields(); };
+
+window.saveCustomCat = async function(){
+  const icon  = document.getElementById('cc-icon').value.trim()||'📝';
+  const label = document.getElementById('cc-name').value.trim();
+  const color = document.getElementById('cc-color').value;
+  if(!label){ toast('⚠️ Giv kategorien et navn'); return; }
+  const fields=_ccFields.map(f=>({...f,id:f.id||'cf_'+Date.now()}));
+  try{
+    setSyncing();
+    if(editingCCId) await _update('customCats',editingCCId,{icon,label,color,fields});
+    else            await _add('customCats',{icon,label,color,fields});
+    setSynced(); closeModal('custom-cat-modal'); toast('✅ Kategori gemt'); editingCCId=null;
+  }catch(e){ toast('❌ '+e.message); }
+};
+
+window.deleteCustomCat = async function(id){
+  if(!confirm('Slet kategori?')) return;
+  try{ setSyncing(); await _delete('customCats',id); setSynced(); toast('🗑️ Slettet'); }
+  catch(e){ toast('❌ '+e.message); }
+};
+
+// ═══════════════════════════════════════════════════
+//  OVERVIEW
+// ═══════════════════════════════════════════════════
+function renderOverview(){
+  const today=todayStr();
+  const el=document.getElementById('stats-strip'); if(!el) return;
+  el.innerHTML=[
+    {num:employees.length, lbl:'Medarbejdere'},
+    {num:logs.filter(l=>l.date===today).length, lbl:'Noteringer i dag'},
+    {num:logs.filter(l=>l.category==='sick'&&l.date===today).length, lbl:'Syge i dag'},
+    {num:logs.filter(l=>l.category==='late'&&l.date===today).length, lbl:'Forsent i dag'},
+    {num:logs.filter(l=>l.category==='noshow'&&l.date===today).length, lbl:'Mødte ikke op'},
+    {num:logs.filter(l=>l.category==='invoice').length, lbl:'Regninger total'},
+    {num:cards.filter(c=>c.active).length, lbl:'Aktive kort'},
+    {num:logs.length, lbl:'Total noteringer'},
+  ].map(s=>`<div class="stat-chip"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join('');
+  const cm=catMap();
+  const rEl=document.getElementById('recent-logs-list'); if(!rEl) return;
+  rEl.innerHTML=logs.slice(0,10).map(l=>renderLogItem(l,cm,false)).join('')
+    ||`<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen noteringer endnu</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════════════════
+function renderHistory(){
+  const from  = document.getElementById('hist-from')?.value||'';
+  const to    = document.getElementById('hist-to')?.value||'';
+  const empId = document.getElementById('hist-emp')?.value||'';
+  const cm=catMap();
+  let filtered=logs.filter(l=>{
+    if(from&&l.date<from) return false;
+    if(to  &&l.date>to)   return false;
+    if(empId&&l.empId!==empId) return false;
+    return true;
+  });
+  const bar=document.getElementById('cat-filter-bar');
+  if(bar) bar.innerHTML=
+    `<button class="filter-chip ${!_catFilter?'active':''}" onclick="setCatFilter('',this)">Alle (${filtered.length})</button>`+
+    allCats().map(c=>{ const cnt=filtered.filter(l=>l.category===c.id).length;
+      return cnt?`<button class="filter-chip ${_catFilter===c.id?'active':''}" onclick="setCatFilter('${c.id}',this)">${c.icon} ${c.label} (${cnt})</button>`:''}).join('');
+  if(_catFilter) filtered=filtered.filter(l=>l.category===_catFilter);
+  const list=document.getElementById('log-list'); if(!list) return;
+  list.innerHTML=filtered.length
+    ?filtered.map(l=>renderLogItem(l,cm,true)).join('')
+    :`<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen noteringer i perioden</div></div>`;
+}
+window.renderHistory = renderHistory;
+window.setCatFilter  = function(id,btn){ _catFilter=id; renderHistory(); };
+
+// ═══════════════════════════════════════════════════
+//  LOG ITEM
+// ═══════════════════════════════════════════════════
+function renderLogItem(l,cm,showDelete){
+  cm=cm||catMap();
+  const emp=employees.find(e=>e.id===l.empId);
+  const cat=cm[l.category];
+  if(!emp||!cat) return '';
+  const extra=buildExtraText(l,cat);
+  return`<div class="log-item anim-in">
+    ${showDelete?`<button class="btn btn-danger btn-sm btn-icon log-delete" onclick="deleteLog('${l.id}')">🗑️</button>`:''}
+    <div class="log-header">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px">
+        <span class="badge badge-${cat.color}">${cat.icon} ${cat.label}</span>
+        ${l.category==='invoice'&&l.extra?.inv_amount?`<span class="invoice-chip">💰 ${Number(l.extra.inv_amount).toLocaleString('da-DK')} kr.</span>`:''}
+        <span style="font-size:0.82rem;color:var(--text2)"><strong>${emp.name}</strong> <span style="color:var(--text3)">(${emp.tur})</span></span>
+      </div>
+      <div class="log-meta">${fmtDate(l.date)}</div>
+    </div>
+    ${extra?`<div class="log-details">${extra}</div>`:''}
+    ${l.comment?`<div class="log-details" style="color:var(--text3);font-style:italic">"${l.comment}"</div>`:''}
+  </div>`;
+}
+function buildExtraText(l,cat){
+  return (cat.fields||[]).map(f=>{
+    const v=l.extra?.[f.id];
+    if(!v||(Array.isArray(v)&&!v.length)) return '';
+    return `${f.label}: ${Array.isArray(v)?v.join(', '):v}`;
+  }).filter(Boolean).join(' &nbsp;·&nbsp; ');
+}
+
+// ═══════════════════════════════════════════════════
+//  SELECTS
+// ═══════════════════════════════════════════════════
+function populateEmpSelects(){
+  ['hist-emp','exp-emp'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Alle medarbejdere</option>'+
+      employees.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+    sel.value=cur;
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════
+window.showExportModal = function(){ populateEmpSelects(); openModal('export-modal'); };
+
+function getFilteredLogs(){
+  const from=document.getElementById('exp-from').value, to=document.getElementById('exp-to').value;
+  const empId=document.getElementById('exp-emp').value;
+  return logs.filter(l=>{
+    if(from&&l.date<from) return false; if(to&&l.date>to) return false;
+    if(empId&&l.empId!==empId) return false; return true;
+  });
+}
+function buildExtraTextPlain(l,cat){
+  return (cat.fields||[]).map(f=>{const v=l.extra?.[f.id];if(!v||(Array.isArray(v)&&!v.length))return'';return`${f.label}: ${Array.isArray(v)?v.join(', '):v}`;}).filter(Boolean).join(' | ');
+}
+
+window.exportExcel = function(){
+  const cm=catMap(), wb=XLSX.utils.book_new();
+  const empId=document.getElementById('exp-emp').value;
+  const incLogs =document.getElementById('exp-include-logs').checked;
+  const incCards=document.getElementById('exp-include-cards').checked;
+  const incInv  =document.getElementById('exp-include-invoices').checked;
+  if(incLogs){
+    const d=getFilteredLogs().filter(l=>l.category!=='invoice').map(l=>{
+      const e=employees.find(x=>x.id===l.empId)||{}, c=cm[l.category]||{};
+      return{'Dato':l.date,'Tur nr.':e.tur||'','Navn':e.name||'','Kategori':c.label||l.category,'Detaljer':buildExtraTextPlain(l,c),'Kommentar':l.comment||''};
+    });
+    if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[10,10,22,22,40,30].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Noteringer');}
+  }
+  if(incInv){
+    const d=getFilteredLogs().filter(l=>l.category==='invoice').map(l=>{
+      const e=employees.find(x=>x.id===l.empId)||{};
+      return{'Dato':l.date,'Tur nr.':e.tur||'','Navn':e.name||'','Type':l.extra?.inv_type||'','Afsender':l.extra?.inv_sender||'','Beløb (kr.)':l.extra?.inv_amount||'','Reference':l.extra?.inv_ref||''};
+    });
+    if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[10,10,22,14,22,14,20].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Regninger');}
+  }
+  if(incCards){
+    const c=empId?cards.filter(x=>x.empId===empId):cards;
+    const tl={fuel:'Brændstofkort',charge:'Ladebrik',key:'Bilnøgle',evotec:'Evotec brik'};
+    const d=c.map(x=>{const e=employees.find(y=>y.id===x.empId)||{};
+      return{'Dato tildelt':x.date,'Tur nr.':e.tur||'','Navn':e.name||'','Type':tl[x.type]||x.type,'Nr./ID':x.number||'','Status':x.active?'Aktiv':'Afleveret','Afleveret dato':x.returnedDate||''};
+    });
+    if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[12,10,22,16,16,10,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Kort og Brikker');}
+  }
+  if(!wb.SheetNames.length){toast('⚠️ Ingen data at eksportere');return;}
+  XLSX.writeFile(wb,`PilotNote_${todayStr()}.xlsx`);
+  toast('📊 Excel hentet!'); closeModal('export-modal');
+};
+
+window.exportPDF = function(){
+  const cm=catMap();
+  const from=document.getElementById('exp-from').value, to=document.getElementById('exp-to').value;
+  const empName=document.getElementById('exp-emp').options[document.getElementById('exp-emp').selectedIndex].text;
+  const filtered=getFilteredLogs();
+  if(!filtered.length){toast('⚠️ Ingen data i perioden');return;}
+  const rows=filtered.map(l=>{
+    const e=employees.find(x=>x.id===l.empId)||{}, c=cm[l.category]||{};
+    return`<tr${l.category==='invoice'?' style="background:#fff5f5"':''}><td>${l.date}</td><td>${e.tur||''}</td><td>${e.name||''}</td><td>${c.icon||''} ${c.label||l.category}</td><td>${buildExtraTextPlain(l,c)}</td><td>${l.comment||''}</td></tr>`;
+  }).join('');
+  const invRows=filtered.filter(l=>l.category==='invoice').map(l=>{
+    const e=employees.find(x=>x.id===l.empId)||{};
+    return`<tr><td>${l.date}</td><td>${e.tur||''}</td><td>${e.name||''}</td><td>${l.extra?.inv_type||''}</td><td>${l.extra?.inv_sender||''}</td><td>${l.extra?.inv_amount?Number(l.extra.inv_amount).toLocaleString('da-DK')+' kr.':''}</td><td>${l.extra?.inv_ref||''}</td></tr>`;
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Pilot.Note</title>
+  <style>body{font-family:Arial;font-size:11px;color:#111;margin:20px;}h1{font-size:18px;color:#1e3a5f;}h2{font-size:13px;margin:18px 0 6px;color:#1e3a5f;}.meta{color:#666;margin-bottom:14px;}table{width:100%;border-collapse:collapse;margin-bottom:14px;}th{background:#1e3a5f;color:white;padding:7px 9px;text-align:left;font-size:9px;text-transform:uppercase;}td{padding:6px 9px;border-bottom:1px solid #e5e7eb;vertical-align:top;}tr:nth-child(even) td{background:#f8fafc;}</style></head><body>
+  <h1>Pilot.Note — Udtræk</h1><div class="meta">Periode: ${from} → ${to} | ${empName} | ${filtered.length} noteringer</div>
+  <h2>📋 Noteringer</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Kategori</th><th>Detaljer</th><th>Kommentar</th></tr></thead><tbody>${rows}</tbody></table>
+  ${invRows?`<h2>💸 Regninger</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Type</th><th>Afsender</th><th>Beløb</th><th>Reference</th></tr></thead><tbody>${invRows}</tbody></table>`:''}
+  <script>window.print();window.onafterprint=()=>window.close();<\/script></body></html>`);
+  w.document.close(); closeModal('export-modal');
+};
+
+// ═══════════════════════════════════════════════════
+//  BACKUP
+// ═══════════════════════════════════════════════════
+window.exportBackup = function(){
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify({employees,logs,cards,customCats},null,2));
+  a.download=`PilotNote_backup_${todayStr()}.json`; a.click();
+  toast('💾 Backup downloadet');
+};
+
+window.restoreBackup = async function(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!confirm(`Importer backup?\nMedarbejdere: ${d.employees?.length||0}, Noteringer: ${d.logs?.length||0}`)) return;
+      setSyncing();
+      const allWrites=[
+        ...(d.employees||[]).map(x=>{const{id,...rest}=x;return{col:'employees',id,data:rest};}),
+        ...(d.logs||[]).map(x=>{const{id,...rest}=x;return{col:'logs',id,data:rest};}),
+        ...(d.cards||[]).map(x=>{const{id,...rest}=x;return{col:'cards',id,data:rest};}),
+        ...(d.customCats||[]).map(x=>{const{id,...rest}=x;return{col:'customCats',id,data:rest};}),
+      ];
+      for(let i=0;i<allWrites.length;i+=400){
+        const chunk=allWrites.slice(i,i+400);
+        const b=_newBatch();
+        chunk.forEach(w=>_batchSet(b,w.col,w.id,w.data));
+        await b.commit();
+      }
+      setSynced(); toast(`✅ Gendannet (${allWrites.length} poster)`);
+    }catch(err){ toast('❌ '+err.message); setSynced(); }
+  };
+  r.readAsText(f);
+};
+
+// ═══════════════════════════════════════════════════
+//  MODAL + TOAST + UTILS
+// ═══════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open');    }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+window.openModal  = openModal;
+window.closeModal = closeModal;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
+
+// ═══════════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════════
+startListeners();
+</script>
+
+<script>
+if('serviceWorker'in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
