@@ -289,6 +289,7 @@
   <nav class="nav">
     <button class="nav-btn active" onclick="showView('overview',this)">📊 Oversigt</button>
     <button class="nav-btn" onclick="showView('log',this)">✍️ Notering</button>
+    <button class="nav-btn" onclick="showView('scanner',this)">📸 DokuScan</button>
     <button class="nav-btn" onclick="showView('employees',this)">👥 Medarbejdere</button>
     <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
     <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
@@ -405,6 +406,60 @@
       </div>
     </div>
     <div id="audit-list"></div>
+  </div>
+
+  <!-- DOKUSCAN -->
+  <div class="view" id="view-scanner">
+    <div class="view-title">📸 DokuScan</div>
+    <div class="view-sub">Scan en faktura/regning → gemmes automatisk som "Regning modtaget"</div>
+
+    <div class="card">
+      <div class="section-title">📎 Upload dokument</div>
+      <div id="scan-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('scan-file-input').click()">
+        <input type="file" id="scan-file-input" accept="image/*" style="display:none" />
+        <input type="file" id="scan-camera-input" accept="image/*" capture="environment" style="display:none" />
+        <div id="scan-placeholder">
+          <div style="font-size:2rem;margin-bottom:8px;opacity:0.5">📎</div>
+          <div style="font-size:0.9rem;font-weight:600;color:var(--text)">Træk billede hertil eller klik</div>
+          <div style="font-size:0.78rem;color:var(--text3);margin-top:4px">JPG, PNG</div>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();document.getElementById('scan-camera-input').click()">📸 Kamera</button>
+          </div>
+        </div>
+        <div id="scan-img-preview" style="display:none"></div>
+      </div>
+      <div id="scan-status" style="display:none;margin-top:12px;display:flex;align-items:center;gap:10px">
+        <div class="spinner" style="width:18px;height:18px;border-width:2.5px"></div>
+        <span style="font-size:0.85rem;color:var(--text2)" id="scan-status-text">Analyserer...</span>
+      </div>
+      <div id="scan-error" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:0.85rem"></div>
+    </div>
+
+    <div class="card" id="scan-results-card" style="display:none">
+      <div class="section-title">✅ Scannet data — Regning modtaget</div>
+      <div class="form-group"><label>Medarbejder</label><div class="emp-select-pills" id="scan-emp-pills"></div></div>
+      <div class="grid-2">
+        <div class="form-group"><label>Type</label>
+          <select id="scan-inv-type">
+            <option>Bøde</option><option>Værksted</option><option>Vejhjælp</option><option>Selvrisiko</option><option>Andet</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Beløb (kr.)</label><input type="text" id="scan-inv-amount" placeholder="0,00" inputmode="decimal" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Afsender / Firma</label><input type="text" id="scan-inv-sender" placeholder="Fx Rigspolitiet" /></div>
+        <div class="form-group"><label>Reference / Fakturanr.</label><input type="text" id="scan-inv-ref" placeholder="Valgfri" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Dato</label><input type="date" id="scan-inv-date" /></div>
+        <div class="form-group"><label>CVR-nummer</label><input type="text" id="scan-inv-cvr" placeholder="Valgfri" inputmode="numeric" maxlength="8" /></div>
+      </div>
+      <div class="form-group"><label>Kommentar</label><textarea id="scan-inv-comment" placeholder="Evt. detaljer fra fakturaen..."></textarea></div>
+      <div class="form-group" style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:0.83rem;color:var(--text2)">
+        ✍️ Registreres af: <span id="scan-ansvarlig" style="color:#d8b4fe;font-family:var(--mono);font-weight:700">—</span>
+      </div>
+      <button class="btn btn-primary" style="width:100%" id="scan-save-btn" onclick="saveScanAsInvoice()">💾 Gem som "Regning modtaget"</button>
+    </div>
   </div>
 
 </div><!-- end #app -->
@@ -786,6 +841,7 @@ function showView(id,btn){
   if(id==='cards')    renderCards();
   if(id==='settings') renderCustomCatsList();
   if(id==='auditlog') renderAuditLog();
+  if(id==='scanner') initScanner();
 }
 window.showView = showView;
 
@@ -1694,6 +1750,219 @@ function toast(msg){
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 
+
+// ═══════════════════════════════════════════════════
+//  DOKUSCAN — AI FAKTURA SCANNER
+// ═══════════════════════════════════════════════════
+const GEMINI_KEY = "AIzaSyA4goT2OAoL-XDjKIp9CCN1jHhCKi9QBLU";
+const SCAN_MODELS = ["gemini-2.5-flash","gemini-2.0-flash","gemini-2.0-flash-lite"];
+let _scanModel = 0;
+let _scanSelectedEmpId = null;
+let _scanning = false;
+
+function scanGeminiUrl(){
+  return `https://generativelanguage.googleapis.com/v1beta/models/${SCAN_MODELS[_scanModel]}:generateContent?key=${GEMINI_KEY}`;
+}
+
+function renderScanEmpPills(){
+  const c=document.getElementById('scan-emp-pills'); if(!c) return;
+  c.innerHTML = employees.length
+    ? employees.map(e=>`<div class="emp-pill ${_scanSelectedEmpId===e.id?'selected':''}" onclick="selectScanEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+    : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
+}
+window.selectScanEmp = function(id){ _scanSelectedEmpId=id; renderScanEmpPills(); };
+
+function initScanner(){
+  const fileInput = document.getElementById('scan-file-input');
+  const camInput = document.getElementById('scan-camera-input');
+  const zone = document.getElementById('scan-upload-zone');
+
+  if(fileInput) fileInput.onchange = e => handleScanFile(e.target.files?.[0]);
+  if(camInput) camInput.onchange = e => handleScanFile(e.target.files?.[0]);
+  if(zone){
+    zone.ondragover = e => { e.preventDefault(); zone.style.borderColor='var(--accent)'; zone.style.background='var(--accent-glow)'; };
+    zone.ondragleave = () => { zone.style.borderColor='var(--border)'; zone.style.background=''; };
+    zone.ondrop = e => { e.preventDefault(); zone.style.borderColor='var(--border)'; zone.style.background=''; handleScanFile(e.dataTransfer?.files?.[0]); };
+  }
+  renderScanEmpPills();
+  const ad = document.getElementById('scan-ansvarlig');
+  if(ad) ad.textContent = currentUser || '—';
+  const sd = document.getElementById('scan-inv-date');
+  if(sd) sd.value = todayStr();
+}
+
+async function handleScanFile(file){
+  if(!file || _scanning) return;
+  if(!file.type.startsWith('image/')){ toast('⚠️ Upload venligst et billede'); return; }
+
+  // Preview
+  const preview = document.getElementById('scan-img-preview');
+  const placeholder = document.getElementById('scan-placeholder');
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:260px;border-radius:8px;object-fit:contain" />`;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+
+  // Show status
+  const status = document.getElementById('scan-status');
+  const statusText = document.getElementById('scan-status-text');
+  const errorEl = document.getElementById('scan-error');
+  status.style.display = 'flex';
+  errorEl.style.display = 'none';
+  statusText.textContent = 'Gemini AI analyserer faktura...';
+  _scanning = true;
+
+  try {
+    const base64 = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = ()=>res(r.result.split(",")[1]);
+      r.onerror = ()=>rej(new Error("Kunne ikke læse filen"));
+      r.readAsDataURL(file);
+    });
+
+    const prompt = `Du er en præcis dokumentlæser specialiseret i danske fakturaer og regninger.
+Analyser dette dokument og udtræk følgende felter.
+Returner KUN et JSON-objekt med disse nøgler og værdier.
+Hvis et felt ikke kan findes, brug tom streng "".
+For beløb, brug dansk format med punktum som tusindtalseparator og komma som decimal (f.eks. 8.000,00).
+
+{
+  "inv_sender": "Afsender / firma navn",
+  "inv_amount": "Totalbeløb inkl. moms",
+  "inv_ref": "Fakturanummer eller reference",
+  "inv_type": "En af: Bøde, Værksted, Vejhjælp, Selvrisiko, Andet",
+  "inv_date": "Fakturadato i YYYY-MM-DD format",
+  "inv_cvr": "CVR-nummer på afsender (8 cifre)",
+  "inv_comment": "Kort beskrivelse af hvad fakturaen handler om"
+}
+
+VIGTIGT: Returner KUN valid JSON. Ingen markdown, ingen backticks, ingen forklaring.`;
+
+    const body = {
+      contents: [{ parts: [
+        { inlineData: { mimeType: file.type, data: base64 } },
+        { text: prompt }
+      ]}]
+    };
+
+    let data;
+    for(let attempt=0; attempt<SCAN_MODELS.length; attempt++){
+      statusText.textContent = `Scanner med ${SCAN_MODELS[_scanModel]}...`;
+      const res = await fetch(scanGeminiUrl(), {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(body)
+      });
+      data = await res.json();
+      if(data.error && data.error.message && data.error.message.includes("Quota exceeded")){
+        _scanModel = (_scanModel+1) % SCAN_MODELS.length;
+        continue;
+      }
+      if(data.error && data.error.message && data.error.message.includes("not found")){
+        _scanModel = (_scanModel+1) % SCAN_MODELS.length;
+        continue;
+      }
+      break;
+    }
+
+    if(data.error){
+      errorEl.textContent = 'API-fejl: ' + (data.error.message||'Ukendt fejl');
+      errorEl.style.display = 'block';
+      status.style.display = 'none';
+      _scanning = false;
+      return;
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if(!text){ errorEl.textContent='Intet svar fra AI. Prøv igen.'; errorEl.style.display='block'; status.style.display='none'; _scanning=false; return; }
+
+    const clean = text.replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(clean);
+
+    // Fill fields
+    if(parsed.inv_sender) document.getElementById('scan-inv-sender').value = parsed.inv_sender;
+    if(parsed.inv_amount) document.getElementById('scan-inv-amount').value = parsed.inv_amount;
+    if(parsed.inv_ref) document.getElementById('scan-inv-ref').value = parsed.inv_ref;
+    if(parsed.inv_date) document.getElementById('scan-inv-date').value = parsed.inv_date;
+    if(parsed.inv_cvr) document.getElementById('scan-inv-cvr').value = parsed.inv_cvr;
+    if(parsed.inv_comment) document.getElementById('scan-inv-comment').value = parsed.inv_comment;
+    if(parsed.inv_type){
+      const sel = document.getElementById('scan-inv-type');
+      const opts = [...sel.options].map(o=>o.value);
+      if(opts.includes(parsed.inv_type)) sel.value = parsed.inv_type;
+    }
+
+    // Show results
+    document.getElementById('scan-results-card').style.display = 'block';
+    status.style.display = 'none';
+    toast('✅ Faktura scannet!');
+
+  } catch(err){
+    if(err instanceof SyntaxError) errorEl.textContent = 'Kunne ikke parse svaret. Prøv et tydeligere billede.';
+    else errorEl.textContent = 'Fejl: ' + err.message;
+    errorEl.style.display = 'block';
+    status.style.display = 'none';
+  }
+  _scanning = false;
+}
+
+window.saveScanAsInvoice = async function(){
+  if(!_scanSelectedEmpId){ toast('⚠️ Vælg en medarbejder'); return; }
+  if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); return; }
+
+  const btn = document.getElementById('scan-save-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+
+  const extra = {
+    inv_type:   document.getElementById('scan-inv-type').value,
+    inv_sender: document.getElementById('scan-inv-sender').value,
+    inv_amount: document.getElementById('scan-inv-amount').value,
+    inv_ref:    document.getElementById('scan-inv-ref').value,
+  };
+
+  const comment = document.getElementById('scan-inv-comment').value;
+  const date = document.getElementById('scan-inv-date').value || todayStr();
+
+  try {
+    setSyncing();
+    const logData = {
+      empId: _scanSelectedEmpId,
+      date: date,
+      category: 'invoice',
+      extra: extra,
+      comment: comment + (document.getElementById('scan-inv-cvr').value ? ' [CVR: '+document.getElementById('scan-inv-cvr').value+']' : ''),
+      ansvarlig: currentUser,
+      createdAt: new Date().toISOString()
+    };
+    const ref = await _add('logs', logData);
+    await _add('auditLogs',{
+      action:'create', logId:ref.id,
+      snapshot: logData,
+      by: currentUser,
+      timestamp: new Date().toISOString()
+    });
+    setSynced();
+
+    // Reset scanner
+    _scanSelectedEmpId = null;
+    document.getElementById('scan-results-card').style.display = 'none';
+    document.getElementById('scan-img-preview').style.display = 'none';
+    document.getElementById('scan-placeholder').style.display = 'block';
+    document.getElementById('scan-inv-sender').value = '';
+    document.getElementById('scan-inv-amount').value = '';
+    document.getElementById('scan-inv-ref').value = '';
+    document.getElementById('scan-inv-cvr').value = '';
+    document.getElementById('scan-inv-comment').value = '';
+    document.getElementById('scan-inv-date').value = todayStr();
+    document.getElementById('scan-file-input').value = '';
+    renderScanEmpPills();
+
+    toast('✅ Regning gemt i Pilot.Note!');
+  } catch(e){ toast('❌ '+e.message); }
+  btn.disabled=false; btn.textContent='💾 Gem som "Regning modtaget"';
+};
 
 // ═══════════════════════════════════════════════════
 //  PWA INSTALL
