@@ -413,6 +413,14 @@
     <div class="view-title">📸 DokuScan</div>
     <div class="view-sub">Scan en faktura/regning → gemmes automatisk som "Regning modtaget"</div>
 
+    <div class="card" id="scan-api-card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title" style="margin-bottom:0">🔑 Gemini Proxy</div>
+        <button class="btn btn-ghost btn-sm" onclick="setScanProxy()">⚙ Konfigurer</button>
+      </div>
+      <div id="scan-api-status" style="margin-top:8px;font-size:0.82rem"></div>
+    </div>
+
     <div class="card">
       <div class="section-title">📎 Upload dokument</div>
       <div id="scan-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('scan-file-input').click()">
@@ -1752,17 +1760,27 @@ function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/
 
 
 // ═══════════════════════════════════════════════════
-//  DOKUSCAN — AI FAKTURA SCANNER
+//  DOKUSCAN — AI FAKTURA SCANNER (via Cloudflare Proxy)
 // ═══════════════════════════════════════════════════
-const GEMINI_KEY = "AIzaSyD2WbOB8EK4k5l6rXjGKK1lOm8VSiVDohU";
-const SCAN_MODELS = ["gemini-2.5-flash","gemini-2.0-flash","gemini-2.0-flash-lite"];
-let _scanModel = 0;
+// ── PROXY CONFIG — Skift disse to værdier ──
+const PROXY_URL = localStorage.getItem('pn_proxy_url') || '';
+const PROXY_SECRET = localStorage.getItem('pn_proxy_secret') || '';
+
+window.setScanProxy = function(){
+  const url = prompt('Indtast din Cloudflare Worker URL:\n(fx https://gemini-proxi.taim.workers.dev/ )', localStorage.getItem('pn_proxy_url') || '');
+  if(url === null) return;
+  localStorage.setItem('pn_proxy_url', url.trim());
+
+  const secret = prompt('Indtast din APP_SECRET:\n(den kode du satte i Worker secrets)', localStorage.getItem('pn_proxy_secret') || '');
+  if(secret === null) return;
+  localStorage.setItem('pn_proxy_secret', secret.trim());
+
+  // Reload config
+  window.location.reload();
+};
+
 let _scanSelectedEmpId = null;
 let _scanning = false;
-
-function scanGeminiUrl(){
-  return `https://generativelanguage.googleapis.com/v1beta/models/${SCAN_MODELS[_scanModel]}:generateContent?key=${GEMINI_KEY}`;
-}
 
 function renderScanEmpPills(){
   const c=document.getElementById('scan-emp-pills'); if(!c) return;
@@ -1789,10 +1807,21 @@ function initScanner(){
   if(ad) ad.textContent = currentUser || '—';
   const sd = document.getElementById('scan-inv-date');
   if(sd) sd.value = todayStr();
+
+  // Show API key status
+  const statusEl = document.getElementById('scan-api-status');
+  if(statusEl){
+    if(GEMINI_KEY){
+      statusEl.innerHTML = `<span style="color:var(--green)">✓ Nøgle sat</span> <span style="color:var(--text3)">(${GEMINI_KEY.slice(0,8)}...)</span>`;
+    } else {
+      statusEl.innerHTML = `<span style="color:var(--red)">⚠ Ingen nøgle — </span><a href="#" style="color:var(--accent)" onclick="event.preventDefault();setScanApiKey()">Klik her for at tilføje</a>`;
+    }
+  }
 }
 
 async function handleScanFile(file){
   if(!file || _scanning) return;
+  if(!GEMINI_KEY){ toast('⚠️ Tilføj din Gemini API-nøgle først'); setScanApiKey(); return; }
   if(!file.type.startsWith('image/')){ toast('⚠️ Upload venligst et billede'); return; }
 
   // Preview
