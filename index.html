@@ -1767,7 +1767,7 @@ const PROXY_URL = localStorage.getItem('pn_proxy_url') || '';
 const PROXY_SECRET = localStorage.getItem('pn_proxy_secret') || '';
 
 window.setScanProxy = function(){
-  const url = prompt('Indtast din Cloudflare Worker URL:\n(fx https://gemini-proxi.taim.workers.dev/ )', localStorage.getItem('pn_proxy_url') || '');
+  const url = prompt('Indtast din Cloudflare Worker URL:\n(fx https://gemini-proxy.dit-navn.workers.dev)', localStorage.getItem('pn_proxy_url') || '');
   if(url === null) return;
   localStorage.setItem('pn_proxy_url', url.trim());
 
@@ -2082,4 +2082,4 @@ if('serviceWorker'in navigator){ navigator.serviceWorker.register('sw.js').catch
   </div>
 </div>
 </body>
-</html>
+  </html>
