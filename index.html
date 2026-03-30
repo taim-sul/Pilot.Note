@@ -436,7 +436,7 @@
         </div>
         <div id="scan-img-preview" style="display:none"></div>
       </div>
-      <div id="scan-status" style="display:none;margin-top:12px;display:flex;align-items:center;gap:10px">
+      <div id="scan-status" style="display:none;margin-top:12px;align-items:center;gap:10px">
         <div class="spinner" style="width:18px;height:18px;border-width:2.5px"></div>
         <span style="font-size:0.85rem;color:var(--text2)" id="scan-status-text">Analyserer...</span>
       </div>
@@ -1808,20 +1808,22 @@ function initScanner(){
   const sd = document.getElementById('scan-inv-date');
   if(sd) sd.value = todayStr();
 
-  // Show API key status
+  // Show API proxy status
   const statusEl = document.getElementById('scan-api-status');
   if(statusEl){
-    if(GEMINI_KEY){
-      statusEl.innerHTML = `<span style="color:var(--green)">✓ Nøgle sat</span> <span style="color:var(--text3)">(${GEMINI_KEY.slice(0,8)}...)</span>`;
+    const pUrl = localStorage.getItem('pn_proxy_url');
+    if(pUrl){
+      statusEl.innerHTML = `<span style="color:var(--green)">✓ Proxy konfigureret</span> <span style="color:var(--text3)">(${pUrl.replace(/https?:\/\//,'')})</span>`;
     } else {
-      statusEl.innerHTML = `<span style="color:var(--red)">⚠ Ingen nøgle — </span><a href="#" style="color:var(--accent)" onclick="event.preventDefault();setScanApiKey()">Klik her for at tilføje</a>`;
+      statusEl.innerHTML = `<span style="color:var(--red)">⚠ Ikke konfigureret — </span><a href="#" style="color:var(--accent)" onclick="event.preventDefault();setScanProxy()">Klik her for at opsætte</a>`;
     }
   }
 }
 
 async function handleScanFile(file){
   if(!file || _scanning) return;
-  if(!GEMINI_KEY){ toast('⚠️ Tilføj din Gemini API-nøgle først'); setScanApiKey(); return; }
+  const proxyUrl = localStorage.getItem('pn_proxy_url');
+  if(!proxyUrl){ toast('⚠️ Konfigurer Gemini proxy først'); setScanProxy(); return; }
   if(!file.type.startsWith('image/')){ toast('⚠️ Upload venligst et billede'); return; }
 
   // Preview
@@ -1870,34 +1872,25 @@ For beløb, brug dansk format med punktum som tusindtalseparator og komma som de
 
 VIGTIGT: Returner KUN valid JSON. Ingen markdown, ingen backticks, ingen forklaring.`;
 
-    const body = {
+    const proxyBody = {
+      secret: localStorage.getItem('pn_proxy_secret') || '',
+      model: 'gemini-2.5-flash',
       contents: [{ parts: [
         { inlineData: { mimeType: file.type, data: base64 } },
         { text: prompt }
       ]}]
     };
 
-    let data;
-    for(let attempt=0; attempt<SCAN_MODELS.length; attempt++){
-      statusText.textContent = `Scanner med ${SCAN_MODELS[_scanModel]}...`;
-      const res = await fetch(scanGeminiUrl(), {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(body)
-      });
-      data = await res.json();
-      if(data.error && data.error.message && data.error.message.includes("Quota exceeded")){
-        _scanModel = (_scanModel+1) % SCAN_MODELS.length;
-        continue;
-      }
-      if(data.error && data.error.message && data.error.message.includes("not found")){
-        _scanModel = (_scanModel+1) % SCAN_MODELS.length;
-        continue;
-      }
-      break;
-    }
+    statusText.textContent = 'Scanner via proxy...';
+    const res = await fetch(localStorage.getItem('pn_proxy_url'), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(proxyBody)
+    });
+    const data = await res.json();
 
     if(data.error){
-      errorEl.textContent = 'API-fejl: ' + (data.error.message||'Ukendt fejl');
+      errorEl.textContent = 'API-fejl: ' + (data.error.message || data.error || 'Ukendt fejl');
       errorEl.style.display = 'block';
       status.style.display = 'none';
       _scanning = false;
@@ -2082,4 +2075,4 @@ if('serviceWorker'in navigator){ navigator.serviceWorker.register('sw.js').catch
   </div>
 </div>
 </body>
-  </html>
+</html>
