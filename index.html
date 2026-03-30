@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.9</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.0</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.9</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.0</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -1916,20 +1916,28 @@ window.exportExcel = function(){
   const incLogs =document.getElementById('exp-include-logs').checked;
   const incCards=document.getElementById('exp-include-cards').checked;
   const incInv  =document.getElementById('exp-include-invoices').checked;
+  const incFuel =document.getElementById('exp-include-fuel')?.checked||false;
+  const filtered = getFilteredLogs();
+
+  // ── 1. Samlet oversigt (alle noteringer) ──
   if(incLogs){
-    const d=getFilteredLogs().filter(l=>l.category!=='invoice').map(l=>{
+    const d=filtered.filter(l=>l.category!=='invoice').map(l=>{
       const e=employees.find(x=>x.id===l.empId)||{}, c=cm[l.category]||{};
-      return{'Dato':l.date,'Tur nr.':e.tur||'','Navn':e.name||'','Kategori':c.label||l.category,'Detaljer':buildExtraTextPlain(l,c),'Kommentar':l.comment||''};
+      return{'Dato':l.date,'Tur nr.':e.tur||'','Navn':e.name||'','Kategori':c.label||l.category,'Detaljer':buildExtraTextPlain(l,c),'Kommentar':l.comment||'','Ansvarlig':l.ansvarlig||''};
     });
-    if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[10,10,22,22,40,30].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Noteringer');}
+    if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[10,10,22,22,40,30,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Alle noteringer');}
   }
+
+  // ── 2. Regninger ──
   if(incInv){
-    const d=getFilteredLogs().filter(l=>l.category==='invoice').map(l=>{
+    const d=filtered.filter(l=>l.category==='invoice').map(l=>{
       const e=employees.find(x=>x.id===l.empId)||{};
       return{'Dato':l.date,'Tur nr.':e.tur||'','Navn':e.name||'','Type':l.extra?.inv_type||'','Afsender':l.extra?.inv_sender||'','Beløb (kr.)':l.extra?.inv_amount||'','Reference':l.extra?.inv_ref||''};
     });
     if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[10,10,22,14,22,14,20].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Regninger');}
   }
+
+  // ── 3. Kort & Brikker ──
   if(incCards){
     const c=empId?cards.filter(x=>x.empId===empId):cards;
     const tl={fuel:'Brændstofkort',charge:'Ladebrik',key:'Bilnøgle',evotec:'Evotec brik'};
@@ -1938,6 +1946,112 @@ window.exportExcel = function(){
     });
     if(d.length){const ws=XLSX.utils.json_to_sheet(d);ws['!cols']=[12,10,22,16,16,10,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,ws,'Kort og Brikker');}
   }
+
+  // ── 4. Fane pr. medarbejder ──
+  if(incLogs || incInv){
+    // Find relevant employees
+    const relevantEmpIds = empId ? [empId] : [...new Set(filtered.map(l=>l.empId))];
+    const sortedEmps = relevantEmpIds
+      .map(id => employees.find(e=>e.id===id))
+      .filter(Boolean)
+      .sort((a,b) => {
+        const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
+        return na-nb;
+      });
+
+    sortedEmps.forEach(emp => {
+      const empLogs = filtered.filter(l=>l.empId===emp.id);
+      if(!empLogs.length) return;
+
+      const d = empLogs.map(l => {
+        const c = cm[l.category]||{};
+        const row = {'Dato':l.date, 'Kategori':c.label||l.category, 'Detaljer':buildExtraTextPlain(l,c), 'Kommentar':l.comment||''};
+        if(l.category==='invoice'){
+          row['Type'] = l.extra?.inv_type||'';
+          row['Beløb'] = l.extra?.inv_amount||'';
+          row['Afsender'] = l.extra?.inv_sender||'';
+        }
+        return row;
+      });
+
+      // Sheet name max 31 chars, no special chars
+      let sheetName = `${emp.tur} ${emp.name}`.replace(/[\\\/\?\*\[\]:]/g,'').slice(0,31);
+      // Ensure unique sheet name
+      let suffix = 1;
+      let origName = sheetName;
+      while(wb.SheetNames.includes(sheetName)){
+        sheetName = origName.slice(0, 28) + ` (${suffix++})`;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(d);
+      ws['!cols'] = [10,22,40,30,14,14,22].map(w=>({wch:w}));
+
+      // Add header row with employee info
+      XLSX.utils.sheet_add_aoa(ws, [
+        [`${emp.name} — Tur ${emp.tur}`, '', `Noteringer: ${empLogs.length}`, '', `Periode: ${document.getElementById('exp-from').value} → ${document.getElementById('exp-to').value}`]
+      ], {origin:'A1'});
+      // Shift data down by adding the header
+      const newWs = XLSX.utils.json_to_sheet(d, {origin:'A3'});
+      // Re-add header
+      XLSX.utils.sheet_add_aoa(newWs, [
+        [`${emp.name} — Tur ${emp.tur}`, '', `${empLogs.length} noteringer`]
+      ], {origin:'A1'});
+      newWs['!cols'] = [10,22,40,30,14,14,22].map(w=>({wch:w}));
+
+      XLSX.utils.book_append_sheet(wb, newWs, sheetName);
+    });
+  }
+
+  // ── 5. Brændstof fane (kun Masri) ──
+  if(incFuel && _fuelReports && _fuelReports.length){
+    // Company summary
+    const fuelSummary = [];
+    _fuelReports.forEach(r => {
+      (r.cards||[]).forEach(c => {
+        const emp = c.empId ? employees.find(e=>e.id===c.empId) : null;
+        fuelSummary.push({
+          'Rapport dato': r.date || (r.createdAt||'').split('T')[0] || '',
+          'Kort nr.': c.kortNr||'',
+          'Medarbejder': emp?.name||'Ikke tildelt',
+          'Tur nr.': emp?.tur||'',
+          'Netto (DKK)': c.netto||0,
+          'Rabat (DKK)': c.rabat||0
+        });
+      });
+    });
+
+    if(fuelSummary.length){
+      const ws = XLSX.utils.json_to_sheet(fuelSummary);
+      ws['!cols'] = [12,12,22,10,14,14].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws, 'Brændstof');
+    }
+
+    // Per-employee fuel summary
+    const empFuel = {};
+    _fuelReports.forEach(r => {
+      (r.cards||[]).forEach(c => {
+        if(!c.empId) return;
+        if(!empFuel[c.empId]) empFuel[c.empId] = {netto:0, rabat:0, count:0};
+        empFuel[c.empId].netto += c.netto||0;
+        empFuel[c.empId].rabat += c.rabat||0;
+        empFuel[c.empId].count++;
+      });
+    });
+
+    const empFuelRows = Object.entries(empFuel)
+      .sort((a,b) => b[1].netto - a[1].netto)
+      .map(([id, d]) => {
+        const emp = employees.find(e=>e.id===id) || {name:'Ukendt',tur:'-'};
+        return {'Tur nr.':emp.tur, 'Navn':emp.name, 'Total netto (DKK)':d.netto, 'Total rabat (DKK)':d.rabat, 'Antal transaktioner':d.count};
+      });
+
+    if(empFuelRows.length){
+      const ws2 = XLSX.utils.json_to_sheet(empFuelRows);
+      ws2['!cols'] = [10,22,16,16,16].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws2, 'Brændstof pr. medarb.');
+    }
+  }
+
   if(!wb.SheetNames.length){toast('⚠️ Ingen data at eksportere');return;}
   XLSX.writeFile(wb,`PilotNote_${todayStr()}.xlsx`);
   toast('📊 Excel hentet!'); closeModal('export-modal');
