@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.0</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.1</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.0</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.1</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -467,12 +467,17 @@
 
       <!-- UPLOAD -->
       <div class="card" id="fuel-upload-card">
-        <div class="section-title">📄 Upload Shell PDF</div>
+        <div class="section-title">📄 Upload brændstof / lade-fil</div>
         <div id="fuel-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer" onclick="document.getElementById('fuel-file-input').click()">
-          <input type="file" id="fuel-file-input" accept=".pdf" style="display:none" />
+          <input type="file" id="fuel-file-input" accept=".pdf,.xlsx,.xls,.csv" style="display:none" />
           <div style="font-size:2rem;margin-bottom:8px;opacity:0.5">📄</div>
-          <div style="font-size:0.9rem;font-weight:600">Træk PDF hertil eller klik</div>
-          <div style="font-size:0.78rem;color:var(--text3);margin-top:4px">Shell tankfaktura i PDF-format</div>
+          <div style="font-size:0.9rem;font-weight:600">Træk fil hertil eller klik</div>
+          <div style="font-size:0.78rem;color:var(--text3);margin-top:4px">Shell / euroShell (PDF) eller lade-transaktioner (XLSX/CSV)</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:10px">
+            <span style="font-size:0.65rem;font-family:var(--mono);padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--text3)">PDF</span>
+            <span style="font-size:0.65rem;font-family:var(--mono);padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--text3)">XLSX</span>
+            <span style="font-size:0.65rem;font-family:var(--mono);padding:3px 10px;border-radius:20px;border:1px solid var(--border);color:var(--text3)">CSV</span>
+          </div>
         </div>
         <div id="fuel-parse-status" style="display:none;margin-top:10px;display:flex;align-items:center;gap:10px">
           <div class="spinner" style="width:18px;height:18px;border-width:2.5px;display:block"></div>
@@ -2173,22 +2178,29 @@ window.lockFuel = function(){
 
 function initFuel(){
   const fi = document.getElementById('fuel-file-input');
-  if(fi) fi.onchange = e => handleFuelPDF(e.target.files?.[0]);
+  if(fi) fi.onchange = e => handleFuelFile(e.target.files?.[0]);
   loadFuelReports();
   renderFuelStats();
 }
 
-// ── PDF Parsing (pdf.js) ──
-async function handleFuelPDF(file){
-  if(!file || file.type !== 'application/pdf'){
-    showFuelError('Vælg venligst en PDF-fil.'); return;
-  }
+let _fuelDataMode = null; // 'shell', 'euroshell', 'charging'
+
+// ── Multi-format file handler ──
+async function handleFuelFile(file){
+  if(!file){ return; }
   hideFuelError();
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext==='pdf') await handleFuelPDF(file);
+  else if(['xlsx','xls','csv'].includes(ext)) await handleFuelXLSX(file);
+  else showFuelError('Filtypen understøttes ikke. Brug PDF, XLSX eller CSV.');
+}
+
+// ── PDF Parsing ──
+async function handleFuelPDF(file){
   const status = document.getElementById('fuel-parse-status');
   status.style.display = 'flex';
 
   try {
-    // Load pdf.js if not loaded
     if(!window.pdfjsLib){
       const s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -2197,63 +2209,167 @@ async function handleFuelPDF(file){
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
-    const cardMap = {};
-
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+    let allText = '';
+    const pageTexts = [];
     for(let i=1; i<=pdf.numPages; i++){
       const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const items = textContent.items.map(it=>it.str);
-      const fullText = items.join(' ');
-
-      const kortMatch = fullText.match(/Kort:\s*'?\d+\s+(\d{4})-(\d{4})/);
-      let kortNr = kortMatch ? kortMatch[1] : null;
-      if(!kortNr) continue;
-
-      const totalIdx = items.lastIndexOf('Total');
-      if(totalIdx === -1) continue;
-
-      const afterTotal = items.slice(totalIdx+1).filter(s=>s.trim()!=='');
-      function parseDK(s){ return s ? parseFloat(s.replace(/\./g,'').replace(',','.')) : 0; }
-
-      const nums = [];
-      for(const item of afterTotal){
-        const cleaned = item.trim().replace(/\./g,'').replace(',','.');
-        if(!isNaN(parseFloat(cleaned))){ nums.push(item.trim()); }
-        if(nums.length>=5) break;
-      }
-
-      if(nums.length>=3){
-        const netto = parseDK(nums[1]);
-        const rabat = parseDK(nums[2]);
-        if(!cardMap[kortNr]) cardMap[kortNr] = {kortNr, netto:0, rabat:0};
-        cardMap[kortNr].netto += netto;
-        cardMap[kortNr].rabat += rabat;
-      }
+      const tc = await page.getTextContent();
+      const items = tc.items.map(it=>it.str);
+      pageTexts.push(items);
+      allText += items.join(' ') + '\n';
     }
 
-    _fuelParsedData = Object.values(cardMap).sort((a,b)=>b.netto-a.netto);
-
-    if(!_fuelParsedData.length){
-      showFuelError('Kunne ikke finde kortdata i PDF. Er det en Shell-tankfaktura?');
+    // Format 1: Shell tankfaktura — "Kort: '700... XXXX-YYYY"
+    if(allText.includes('Kort:') && /Kort:\s*'?\d+\s+\d{4}-\d{4}/.test(allText)){
+      parseFuelShellTank(pageTexts);
+    }
+    // Format 2: euroShell full — "700210120XXXXXXXXX YYYY A ZZZZ A"
+    else if(/700210120\d+\s+\d{4}\s+[AB]\s+\d{4}\s+[AB]/.test(allText)){
+      parseFuelEuroShell(allText);
+    }
+    // Format 3: euroShell masked — "7002101******XXXXXX YYYY-ZZZZ"
+    else if(/7002101\*{2,}\d+\s+\d{4}-\d{4}/.test(allText)){
+      parseFuelEuroShellMasked(allText);
+    }
+    else {
+      showFuelError('PDF-formatet genkendes ikke. Understøtter Shell tankfaktura og euroShell.');
       status.style.display = 'none'; return;
     }
 
-    // Try to auto-match cards to employees via existing fuel cards in Firestore
-    _fuelCardMatches = {};
-    _fuelParsedData.forEach(c => {
-      const match = cards.find(fc => fc.type==='fuel' && fc.number && fc.number.includes(c.kortNr) && fc.active);
-      if(match) _fuelCardMatches[c.kortNr] = match.empId;
-    });
+    if(!_fuelParsedData.length){
+      showFuelError('Ingen kortdata fundet i PDF.');
+      status.style.display = 'none'; return;
+    }
 
+    autoMatchFuelCards();
     renderFuelResults();
     status.style.display = 'none';
-
   } catch(err){
     showFuelError('Fejl: '+err.message);
     status.style.display = 'none';
   }
+}
+
+function parseFuelShellTank(pageTexts){
+  const cardMap = {};
+  for(const items of pageTexts){
+    const fullText = items.join(' ');
+    const kortMatch = fullText.match(/Kort:\s*'?\d+\s+(\d{4})-(\d{4})/);
+    if(!kortMatch) continue;
+    const kortNr = kortMatch[1];
+    const totalIdx = items.lastIndexOf('Total');
+    if(totalIdx===-1) continue;
+    const afterTotal = items.slice(totalIdx+1).filter(s=>s.trim()!=='');
+    const nums = [];
+    for(const item of afterTotal){
+      const cleaned = item.trim().replace(/\./g,'').replace(',','.');
+      if(!isNaN(parseFloat(cleaned))) nums.push(item.trim());
+      if(nums.length>=5) break;
+    }
+    if(nums.length>=3){
+      const netto = parseFuelDK(nums[1]), rabat = parseFuelDK(nums[2]);
+      if(!cardMap[kortNr]) cardMap[kortNr] = {kortNr, netto:0, rabat:0, moms:0, brutto:0, kwh:0, antal:0};
+      cardMap[kortNr].netto += netto;
+      cardMap[kortNr].rabat += rabat;
+    }
+  }
+  _fuelParsedData = Object.values(cardMap).sort((a,b)=>b.netto-a.netto);
+  _fuelDataMode = 'shell';
+}
+
+function parseFuelEuroShell(allText){
+  const cardMap = {};
+  const cardRe = /700210120\d+\s+\d{4}\s+[AB]\s+(\d{4})\s+[AB]/g;
+  let match;
+  while((match=cardRe.exec(allText))!==null){
+    const kortNr = match[1];
+    const startPos = match.index+match[0].length;
+    const nextCard = allText.indexOf('700210120',startPos);
+    const chunk = nextCard>-1 ? allText.substring(startPos,nextCard) : allText.substring(startPos);
+    const numMatches = [...chunk.matchAll(/([\d.]+,\d{2})/g)].map(x=>parseFuelDK(x[1]));
+    if(numMatches.length>=3){
+      let netto,brutto,moms;
+      if(numMatches.length>=4){moms=numMatches[1];netto=numMatches[2];brutto=numMatches[3]}
+      else{moms=numMatches[0];netto=numMatches[1];brutto=numMatches[2]}
+      if(!cardMap[kortNr]) cardMap[kortNr] = {kortNr, netto:0, moms:0, brutto:0, rabat:0, kwh:0, antal:0};
+      cardMap[kortNr].netto+=netto; cardMap[kortNr].moms+=moms; cardMap[kortNr].brutto+=brutto;
+    }
+  }
+  _fuelParsedData = Object.values(cardMap).sort((a,b)=>b.netto-a.netto);
+  _fuelDataMode = 'euroshell';
+}
+
+function parseFuelEuroShellMasked(allText){
+  const cardMap = {};
+  const cardRe = /7002101\*+\d+\s+(\d{4})-\d{4}\s+\d{4}-\d{4}/g;
+  let match;
+  while((match=cardRe.exec(allText))!==null){
+    const kortNr = match[1];
+    const startPos = match.index+match[0].length;
+    const nextCard = allText.indexOf('7002101*',startPos);
+    const chunk = nextCard>-1 ? allText.substring(startPos,nextCard) : allText.substring(startPos);
+    const numMatches = [...chunk.matchAll(/([\d.]+,\d{2})/g)].map(x=>parseFuelDK(x[1]));
+    if(numMatches.length>=3){
+      let netto,brutto,moms;
+      if(numMatches.length>=4){moms=numMatches[1];netto=numMatches[2];brutto=numMatches[3]}
+      else{moms=numMatches[0];netto=numMatches[1];brutto=numMatches[2]}
+      if(!cardMap[kortNr]) cardMap[kortNr] = {kortNr, netto:0, moms:0, brutto:0, rabat:0, kwh:0, antal:0};
+      cardMap[kortNr].netto+=netto; cardMap[kortNr].moms+=moms; cardMap[kortNr].brutto+=brutto;
+    }
+  }
+  _fuelParsedData = Object.values(cardMap).sort((a,b)=>b.netto-a.netto);
+  _fuelDataMode = 'euroshell';
+}
+
+// ── XLSX / CSV lade-transaktioner ──
+async function handleFuelXLSX(file){
+  const status = document.getElementById('fuel-parse-status');
+  status.style.display = 'flex';
+  try {
+    const ab = await file.arrayBuffer();
+    const wb = XLSX.read(ab, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    if(!rows.length){ showFuelError('Filen er tom.'); status.style.display='none'; return; }
+    const cols = Object.keys(rows[0]);
+    const find = (cands) => { const lc=cols.map(c=>[c,c.toLowerCase().trim()]); for(const ca of cands){const m=lc.find(([,l])=>l===ca.toLowerCase());if(m)return m[0]} return null; };
+    const keyCol = find(['chargeKeyName','chargeKeyId','kort','card','kortnr']);
+    const nettoCol = find(['subAmount','netto','netto beløb','net']);
+    const momsCol = find(['vat','moms']);
+    const bruttoCol = find(['amount','brutto','brutto beløb','total']);
+    const kwhCol = find(['kwh','energy','energi']);
+    if(!keyCol){ showFuelError('Kunne ikke finde en kort-kolonne.'); status.style.display='none'; return; }
+    const cardMap = {};
+    const num = v => typeof v==='number' ? v : parseFloat(v)||0;
+    for(const row of rows){
+      const key = String(row[keyCol]||'').trim();
+      if(!key) continue;
+      if(!cardMap[key]) cardMap[key] = {kortNr:key, netto:0, moms:0, brutto:0, kwh:0, rabat:0, antal:0};
+      cardMap[key].netto += num(row[nettoCol]);
+      cardMap[key].moms += num(row[momsCol]);
+      cardMap[key].brutto += num(row[bruttoCol]);
+      cardMap[key].kwh += num(row[kwhCol]);
+      cardMap[key].antal += 1;
+    }
+    _fuelParsedData = Object.values(cardMap).sort((a,b)=>a.netto-b.netto);
+    _fuelDataMode = 'charging';
+    if(!_fuelParsedData.length){ showFuelError('Ingen data fundet.'); status.style.display='none'; return; }
+    autoMatchFuelCards();
+    renderFuelResults();
+    status.style.display = 'none';
+  } catch(err){ showFuelError('Fejl: '+err.message); status.style.display='none'; }
+}
+
+function parseFuelDK(s){ return s ? parseFloat(s.replace(/\./g,'').replace(',','.')) : 0; }
+
+function autoMatchFuelCards(){
+  _fuelCardMatches = {};
+  _fuelParsedData.forEach(c => {
+    const match = cards.find(fc => (fc.type==='fuel'||fc.type==='charge') && fc.number && fc.number.includes(c.kortNr) && fc.active);
+    if(match) _fuelCardMatches[c.kortNr] = match.empId;
+  });
 }
 
 function showFuelError(msg){
@@ -2269,12 +2385,28 @@ function fmtDK(num){
 }
 
 function renderFuelResults(){
-  const totalNetto = _fuelParsedData.reduce((s,r)=>s+r.netto,0);
+  const totalNetto = _fuelParsedData.reduce((s,r)=>s+Math.abs(r.netto),0);
   const totalRabat = _fuelParsedData.reduce((s,r)=>s+r.rabat,0);
+  const totalMoms = _fuelParsedData.reduce((s,r)=>s+Math.abs(r.moms),0);
+  const totalBrutto = _fuelParsedData.reduce((s,r)=>s+Math.abs(r.brutto),0);
+  const totalKwh = _fuelParsedData.reduce((s,r)=>s+r.kwh,0);
 
   document.getElementById('fuel-total-cards').textContent = _fuelParsedData.length;
   document.getElementById('fuel-total-netto').textContent = fmtDK(totalNetto);
-  document.getElementById('fuel-total-rabat').textContent = fmtDK(totalRabat);
+
+  // Update third stat based on mode
+  const rabatEl = document.getElementById('fuel-total-rabat');
+  if(_fuelDataMode==='shell'){
+    rabatEl.textContent = fmtDK(totalRabat);
+    rabatEl.parentElement.querySelector('.lbl').textContent = 'Total rabat';
+  } else if(_fuelDataMode==='euroshell'){
+    rabatEl.textContent = fmtDK(totalBrutto);
+    rabatEl.parentElement.querySelector('.lbl').textContent = 'Total brutto';
+  } else {
+    rabatEl.textContent = fmtDK(totalKwh);
+    rabatEl.style.color = 'var(--purple)';
+    rabatEl.parentElement.querySelector('.lbl').textContent = 'Total kWh';
+  }
 
   // Card → Employee matching
   const matchEl = document.getElementById('fuel-card-match');
@@ -2286,14 +2418,24 @@ function renderFuelResults(){
 
   matchEl.innerHTML = _fuelParsedData.map(c => {
     const matched = _fuelCardMatches[c.kortNr] || '';
+    let valueDisplay = fmtDK(Math.abs(c.netto));
+    if(_fuelDataMode==='charging' && c.kwh) valueDisplay += ` · ${fmtDK(c.kwh)} kWh`;
+    if(_fuelDataMode==='euroshell' && c.brutto) valueDisplay += ` (${fmtDK(c.brutto)} brutto)`;
+    if(_fuelDataMode==='shell' && c.rabat) valueDisplay += ` (rabat: ${fmtDK(c.rabat)})`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--yellow);min-width:50px">${c.kortNr}</span>
-      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--accent2);min-width:80px">${fmtDK(c.netto)}</span>
+      <span style="font-family:var(--mono);font-size:0.78rem;font-weight:700;color:var(--yellow);min-width:50px">${c.kortNr}</span>
+      <span style="font-family:var(--mono);font-size:0.72rem;color:var(--accent2);min-width:80px">${valueDisplay}</span>
       <select style="flex:1;min-width:0" data-kort="${c.kortNr}" onchange="matchFuelCard('${c.kortNr}',this.value)" class="fuel-emp-sel">
         ${empOpts.replace(`value="${matched}"`, `value="${matched}" selected`)}
       </select>
     </div>`;
   }).join('');
+
+  // Show source badge
+  const modeBadges = {shell:'Shell tankfaktura (PDF)', euroshell:'euroShell faktura (PDF)', charging:'Lade-transaktioner (XLSX)'};
+  matchEl.insertAdjacentHTML('beforebegin',
+    `<div style="margin-bottom:10px"><span class="badge badge-${_fuelDataMode==='charging'?'cyan':'orange'}">${modeBadges[_fuelDataMode]||_fuelDataMode}</span></div>`
+  );
 
   document.getElementById('fuel-results').style.display = 'block';
 }
@@ -2309,14 +2451,22 @@ window.saveFuelReport = async function(){
 
   const reportData = {
     date: todayStr(),
+    dataMode: _fuelDataMode || 'shell',
     cards: _fuelParsedData.map(c => ({
       kortNr: c.kortNr,
-      netto: c.netto,
-      rabat: c.rabat,
+      netto: c.netto||0,
+      rabat: c.rabat||0,
+      moms: c.moms||0,
+      brutto: c.brutto||0,
+      kwh: c.kwh||0,
+      antal: c.antal||0,
       empId: _fuelCardMatches[c.kortNr] || null
     })),
-    totalNetto: _fuelParsedData.reduce((s,r)=>s+r.netto,0),
+    totalNetto: _fuelParsedData.reduce((s,r)=>s+Math.abs(r.netto),0),
     totalRabat: _fuelParsedData.reduce((s,r)=>s+r.rabat,0),
+    totalMoms: _fuelParsedData.reduce((s,r)=>s+Math.abs(r.moms),0),
+    totalBrutto: _fuelParsedData.reduce((s,r)=>s+Math.abs(r.brutto),0),
+    totalKwh: _fuelParsedData.reduce((s,r)=>s+r.kwh,0),
     totalCards: _fuelParsedData.length,
     uploadedBy: currentUser,
     createdAt: new Date().toISOString()
