@@ -240,7 +240,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning</div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.4</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -269,7 +269,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note</div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.4</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -423,10 +423,10 @@
 
     <div class="card">
       <div class="section-title">📎 Upload dokument</div>
-      <div id="scan-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('scan-file-input').click()">
+      <div id="scan-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;transition:all 0.2s">
         <input type="file" id="scan-file-input" accept="image/*" style="display:none" />
         <input type="file" id="scan-camera-input" accept="image/*" capture="environment" style="display:none" />
-        <div id="scan-placeholder">
+        <div id="scan-placeholder" style="cursor:pointer" onclick="document.getElementById('scan-file-input').click()">
           <div style="font-size:2rem;margin-bottom:8px;opacity:0.5">📎</div>
           <div style="font-size:0.9rem;font-weight:600;color:var(--text)">Træk billede hertil eller klik</div>
           <div style="font-size:0.78rem;color:var(--text3);margin-top:4px">JPG, PNG</div>
@@ -435,6 +435,10 @@
           </div>
         </div>
         <div id="scan-img-preview" style="display:none"></div>
+        <div id="scan-new-upload" style="display:none;margin-top:10px">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('scan-file-input').click()">📁 Vælg ny fil</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('scan-camera-input').click()">📸 Nyt foto</button>
+        </div>
       </div>
       <div id="scan-status" style="display:none;margin-top:12px;align-items:center;gap:10px">
         <div class="spinner" style="width:18px;height:18px;border-width:2.5px"></div>
@@ -1829,11 +1833,13 @@ async function handleScanFile(file){
   // Preview
   const preview = document.getElementById('scan-img-preview');
   const placeholder = document.getElementById('scan-placeholder');
+  const newUpload = document.getElementById('scan-new-upload');
   const reader = new FileReader();
   reader.onload = e => {
     preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:260px;border-radius:8px;object-fit:contain" />`;
     preview.style.display = 'block';
     placeholder.style.display = 'none';
+    if(newUpload) newUpload.style.display = 'flex';
   };
   reader.readAsDataURL(file);
 
@@ -1972,6 +1978,7 @@ window.saveScanAsInvoice = async function(){
     document.getElementById('scan-results-card').style.display = 'none';
     document.getElementById('scan-img-preview').style.display = 'none';
     document.getElementById('scan-placeholder').style.display = 'block';
+    const nu = document.getElementById('scan-new-upload'); if(nu) nu.style.display = 'none';
     document.getElementById('scan-inv-sender').value = '';
     document.getElementById('scan-inv-amount').value = '';
     document.getElementById('scan-inv-ref').value = '';
