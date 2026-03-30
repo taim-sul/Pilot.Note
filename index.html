@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.6</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.7</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.6</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.7</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -950,8 +950,13 @@ function renderExtraFields(){
 // ═══════════════════════════════════════════════════
 function renderEmpPills(){
   const c=document.getElementById('emp-pills-log'); if(!c) return;
-  c.innerHTML = employees.length
-    ? employees.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+  const sorted = [...employees].sort((a,b) => {
+    const na = parseInt(a.tur.replace(/\D/g,'')) || 0;
+    const nb = parseInt(b.tur.replace(/\D/g,'')) || 0;
+    return na - nb || a.name.localeCompare(b.name);
+  });
+  c.innerHTML = sorted.length
+    ? sorted.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
     : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
 }
 window.selectEmp = function(id){ selectedEmpId=id; renderEmpPills(); };
@@ -1042,7 +1047,12 @@ window.openEditLogModal = function(id){
 
 function renderEditEmpPills(){
   const c=document.getElementById('edit-emp-pills'); if(!c) return;
-  c.innerHTML = employees.map(e=>
+  const sorted = [...employees].sort((a,b) => {
+    const na = parseInt(a.tur.replace(/\D/g,'')) || 0;
+    const nb = parseInt(b.tur.replace(/\D/g,'')) || 0;
+    return na - nb || a.name.localeCompare(b.name);
+  });
+  c.innerHTML = sorted.map(e=>
     `<div class="emp-pill ${editSelectedEmpId===e.id?'selected':''}" onclick="selectEditEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`
   ).join('');
 }
@@ -1950,8 +1960,13 @@ let _scanning = false;
 
 function renderScanEmpPills(){
   const c=document.getElementById('scan-emp-pills'); if(!c) return;
-  c.innerHTML = employees.length
-    ? employees.map(e=>`<div class="emp-pill ${_scanSelectedEmpId===e.id?'selected':''}" onclick="selectScanEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+  const sorted = [...employees].sort((a,b) => {
+    const na = parseInt(a.tur.replace(/\D/g,'')) || 0;
+    const nb = parseInt(b.tur.replace(/\D/g,'')) || 0;
+    return na - nb || a.name.localeCompare(b.name);
+  });
+  c.innerHTML = sorted.length
+    ? sorted.map(e=>`<div class="emp-pill ${_scanSelectedEmpId===e.id?'selected':''}" onclick="selectScanEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
     : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
 }
 window.selectScanEmp = function(id){ _scanSelectedEmpId=id; renderScanEmpPills(); };
