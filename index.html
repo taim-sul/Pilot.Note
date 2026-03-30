@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.7</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.8</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.7</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.8</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -320,6 +320,7 @@
     <button class="nav-btn" onclick="showView('employees',this)">👥 Medarbejdere</button>
     <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
     <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
+    <button class="nav-btn" id="fuel-nav-btn" style="display:none" onclick="showView('fuel',this)">⛽ Brændstof</button>
     <button class="nav-btn" onclick="showView('settings',this)">⚙️ Indstillinger</button>
     <button class="nav-btn" onclick="showView('auditlog',this)">🔍 Revisionslog</button>
   </nav>
@@ -439,6 +440,79 @@
       </div>
     </div>
     <div id="audit-list"></div>
+  </div>
+
+  <!-- BRÆNDSTOF (kun Masri + PIN) -->
+  <div class="view" id="view-fuel">
+    <!-- PIN GATE -->
+    <div id="fuel-pin-gate">
+      <div class="card" style="text-align:center;padding:40px 20px">
+        <div style="font-size:2.5rem;margin-bottom:12px">🔒</div>
+        <div class="view-title" style="font-size:1.1rem">Brændstof Rapport</div>
+        <div class="view-sub">Indtast PIN-kode for adgang</div>
+        <div style="max-width:200px;margin:0 auto">
+          <input type="password" id="fuel-pin-input" maxlength="4" inputmode="numeric" placeholder="••••" style="text-align:center;font-size:1.4rem;font-family:var(--mono);letter-spacing:8px" onkeydown="if(event.key==='Enter')checkFuelPin()" />
+        </div>
+        <button class="btn btn-primary" style="margin-top:14px" onclick="checkFuelPin()">🔓 Lås op</button>
+        <div id="fuel-pin-error" style="display:none;margin-top:10px;font-size:0.82rem;color:var(--red)"></div>
+      </div>
+    </div>
+
+    <!-- FUEL CONTENT (hidden until PIN ok) -->
+    <div id="fuel-content" style="display:none">
+      <div class="row-between" style="margin-bottom:18px">
+        <div><div class="view-title">⛽ Brændstof Rapport</div><div class="view-sub">Shell tankfaktura → overblik pr. kort & medarbejder</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="lockFuel()">🔒 Lås</button>
+      </div>
+
+      <!-- UPLOAD -->
+      <div class="card" id="fuel-upload-card">
+        <div class="section-title">📄 Upload Shell PDF</div>
+        <div id="fuel-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer" onclick="document.getElementById('fuel-file-input').click()">
+          <input type="file" id="fuel-file-input" accept=".pdf" style="display:none" />
+          <div style="font-size:2rem;margin-bottom:8px;opacity:0.5">📄</div>
+          <div style="font-size:0.9rem;font-weight:600">Træk PDF hertil eller klik</div>
+          <div style="font-size:0.78rem;color:var(--text3);margin-top:4px">Shell tankfaktura i PDF-format</div>
+        </div>
+        <div id="fuel-parse-status" style="display:none;margin-top:10px;display:flex;align-items:center;gap:10px">
+          <div class="spinner" style="width:18px;height:18px;border-width:2.5px;display:block"></div>
+          <span style="font-size:0.82rem;color:var(--text2)">Analyserer PDF...</span>
+        </div>
+        <div id="fuel-parse-error" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:0.82rem"></div>
+      </div>
+
+      <!-- PARSED RESULTS -->
+      <div id="fuel-results" style="display:none">
+        <!-- Summary -->
+        <div class="stats-strip" style="margin-top:16px">
+          <div class="stat-chip"><div class="num" id="fuel-total-cards" style="color:var(--yellow)">0</div><div class="lbl">Antal kort</div></div>
+          <div class="stat-chip"><div class="num" id="fuel-total-netto" style="color:var(--accent2)">0</div><div class="lbl">Total netto</div></div>
+          <div class="stat-chip"><div class="num" id="fuel-total-rabat" style="color:var(--green)">0</div><div class="lbl">Total rabat</div></div>
+        </div>
+
+        <!-- Kort → Medarbejder matching -->
+        <div class="card">
+          <div class="section-title">🔗 Tildel kort til medarbejdere</div>
+          <div id="fuel-card-match" style="max-height:400px;overflow-y:auto"></div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-primary btn-sm" onclick="saveFuelReport()">💾 Gem rapport i Firebase</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportFuelCSV()">⬇ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetFuel()">↻ Ny fil</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAVED REPORTS / STATISTICS -->
+      <div class="card" style="margin-top:16px">
+        <div class="section-title">📊 Statistik & Historik</div>
+        <div class="filter-bar" style="margin-bottom:12px">
+          <button class="filter-chip active" onclick="setFuelStatView('company',this)">🏢 Firma total</button>
+          <button class="filter-chip" onclick="setFuelStatView('employee',this)">👤 Pr. medarbejder</button>
+          <button class="filter-chip" onclick="setFuelStatView('reports',this)">📋 Rapporter</button>
+        </div>
+        <div id="fuel-stats-content"></div>
+      </div>
+    </div>
   </div>
 
   <!-- DOKUSCAN -->
@@ -617,6 +691,7 @@
         <input type="checkbox" class="tag-check" id="exp-include-logs" checked /><label for="exp-include-logs">Noteringer</label>
         <input type="checkbox" class="tag-check" id="exp-include-cards" checked /><label for="exp-include-cards">Kort & Brikker</label>
         <input type="checkbox" class="tag-check" id="exp-include-invoices" checked /><label for="exp-include-invoices">Regninger</label>
+        <span id="exp-fuel-option" style="display:none"><input type="checkbox" class="tag-check" id="exp-include-fuel" /><label for="exp-include-fuel">⛽ Brændstof</label></span>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -737,6 +812,7 @@ function applyUser(name){
   if(el) el.textContent = name || '—';
   const el2 = document.getElementById('edit-ansvarlig-name');
   if(el2) el2.textContent = name || '—';
+  updateFuelTabVisibility();
 }
 window.switchUser = function(){
   sessionStorage.removeItem('pn_session_user');
@@ -912,6 +988,7 @@ function showView(id,btn){
   if(id==='settings') renderCustomCatsList();
   if(id==='auditlog') renderAuditLog();
   if(id==='scanner') initScanner();
+  if(id==='fuel' && !_fuelUnlocked) { /* PIN gate shows by default */ }
 }
 window.showView = showView;
 
@@ -1813,7 +1890,12 @@ function populateEmpSelects(){
 // ═══════════════════════════════════════════════════
 //  EXPORT
 // ═══════════════════════════════════════════════════
-window.showExportModal = function(){ populateEmpSelects(); openModal('export-modal'); };
+window.showExportModal = function(){
+  populateEmpSelects();
+  const fo = document.getElementById('exp-fuel-option');
+  if(fo) fo.style.display = (currentUser==='Masri') ? '' : 'none';
+  openModal('export-modal');
+};
 
 function getFilteredLogs(){
   const from=document.getElementById('exp-from').value, to=document.getElementById('exp-to').value;
@@ -1934,6 +2016,372 @@ function toast(msg){
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 
+
+// ═══════════════════════════════════════════════════
+//  BRÆNDSTOF RAPPORT (Masri + PIN)
+// ═══════════════════════════════════════════════════
+const FUEL_PIN = '1998'; // ← Skift denne PIN
+let _fuelUnlocked = false;
+let _fuelParsedData = [];
+let _fuelCardMatches = {}; // kortNr -> empId
+let _fuelReports = [];
+let _fuelStatView = 'company';
+
+// Show/hide fuel tab based on user
+function updateFuelTabVisibility(){
+  const btn = document.getElementById('fuel-nav-btn');
+  if(btn) btn.style.display = (currentUser === 'Masri') ? '' : 'none';
+}
+
+window.checkFuelPin = function(){
+  const pin = document.getElementById('fuel-pin-input').value;
+  if(pin === FUEL_PIN){
+    _fuelUnlocked = true;
+    document.getElementById('fuel-pin-gate').style.display = 'none';
+    document.getElementById('fuel-content').style.display = 'block';
+    initFuel();
+  } else {
+    const err = document.getElementById('fuel-pin-error');
+    err.textContent = 'Forkert PIN-kode'; err.style.display = 'block';
+    document.getElementById('fuel-pin-input').value = '';
+    document.getElementById('fuel-pin-input').focus();
+  }
+};
+
+window.lockFuel = function(){
+  _fuelUnlocked = false;
+  document.getElementById('fuel-pin-gate').style.display = 'block';
+  document.getElementById('fuel-content').style.display = 'none';
+  document.getElementById('fuel-pin-input').value = '';
+  document.getElementById('fuel-pin-error').style.display = 'none';
+};
+
+function initFuel(){
+  const fi = document.getElementById('fuel-file-input');
+  if(fi) fi.onchange = e => handleFuelPDF(e.target.files?.[0]);
+  loadFuelReports();
+  renderFuelStats();
+}
+
+// ── PDF Parsing (pdf.js) ──
+async function handleFuelPDF(file){
+  if(!file || file.type !== 'application/pdf'){
+    showFuelError('Vælg venligst en PDF-fil.'); return;
+  }
+  hideFuelError();
+  const status = document.getElementById('fuel-parse-status');
+  status.style.display = 'flex';
+
+  try {
+    // Load pdf.js if not loaded
+    if(!window.pdfjsLib){
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      document.head.appendChild(s);
+      await new Promise((res,rej) => { s.onload=res; s.onerror=rej; });
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+    const cardMap = {};
+
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const items = textContent.items.map(it=>it.str);
+      const fullText = items.join(' ');
+
+      const kortMatch = fullText.match(/Kort:\s*'?\d+\s+(\d{4})-(\d{4})/);
+      let kortNr = kortMatch ? kortMatch[1] : null;
+      if(!kortNr) continue;
+
+      const totalIdx = items.lastIndexOf('Total');
+      if(totalIdx === -1) continue;
+
+      const afterTotal = items.slice(totalIdx+1).filter(s=>s.trim()!=='');
+      function parseDK(s){ return s ? parseFloat(s.replace(/\./g,'').replace(',','.')) : 0; }
+
+      const nums = [];
+      for(const item of afterTotal){
+        const cleaned = item.trim().replace(/\./g,'').replace(',','.');
+        if(!isNaN(parseFloat(cleaned))){ nums.push(item.trim()); }
+        if(nums.length>=5) break;
+      }
+
+      if(nums.length>=3){
+        const netto = parseDK(nums[1]);
+        const rabat = parseDK(nums[2]);
+        if(!cardMap[kortNr]) cardMap[kortNr] = {kortNr, netto:0, rabat:0};
+        cardMap[kortNr].netto += netto;
+        cardMap[kortNr].rabat += rabat;
+      }
+    }
+
+    _fuelParsedData = Object.values(cardMap).sort((a,b)=>b.netto-a.netto);
+
+    if(!_fuelParsedData.length){
+      showFuelError('Kunne ikke finde kortdata i PDF. Er det en Shell-tankfaktura?');
+      status.style.display = 'none'; return;
+    }
+
+    // Try to auto-match cards to employees via existing fuel cards in Firestore
+    _fuelCardMatches = {};
+    _fuelParsedData.forEach(c => {
+      const match = cards.find(fc => fc.type==='fuel' && fc.number && fc.number.includes(c.kortNr) && fc.active);
+      if(match) _fuelCardMatches[c.kortNr] = match.empId;
+    });
+
+    renderFuelResults();
+    status.style.display = 'none';
+
+  } catch(err){
+    showFuelError('Fejl: '+err.message);
+    status.style.display = 'none';
+  }
+}
+
+function showFuelError(msg){
+  const el = document.getElementById('fuel-parse-error');
+  el.textContent=msg; el.style.display='block';
+}
+function hideFuelError(){
+  document.getElementById('fuel-parse-error').style.display='none';
+}
+
+function fmtDK(num){
+  return num.toLocaleString('da-DK',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function renderFuelResults(){
+  const totalNetto = _fuelParsedData.reduce((s,r)=>s+r.netto,0);
+  const totalRabat = _fuelParsedData.reduce((s,r)=>s+r.rabat,0);
+
+  document.getElementById('fuel-total-cards').textContent = _fuelParsedData.length;
+  document.getElementById('fuel-total-netto').textContent = fmtDK(totalNetto);
+  document.getElementById('fuel-total-rabat').textContent = fmtDK(totalRabat);
+
+  // Card → Employee matching
+  const matchEl = document.getElementById('fuel-card-match');
+  const empOpts = '<option value="">— Vælg —</option>' +
+    [...employees].sort((a,b)=>{
+      const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
+      return na-nb;
+    }).map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+
+  matchEl.innerHTML = _fuelParsedData.map(c => {
+    const matched = _fuelCardMatches[c.kortNr] || '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--yellow);min-width:50px">${c.kortNr}</span>
+      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--accent2);min-width:80px">${fmtDK(c.netto)}</span>
+      <select style="flex:1;min-width:0" data-kort="${c.kortNr}" onchange="matchFuelCard('${c.kortNr}',this.value)" class="fuel-emp-sel">
+        ${empOpts.replace(`value="${matched}"`, `value="${matched}" selected`)}
+      </select>
+    </div>`;
+  }).join('');
+
+  document.getElementById('fuel-results').style.display = 'block';
+}
+
+window.matchFuelCard = function(kortNr, empId){
+  if(empId) _fuelCardMatches[kortNr] = empId;
+  else delete _fuelCardMatches[kortNr];
+};
+
+// ── Save to Firestore ──
+window.saveFuelReport = async function(){
+  if(!_fuelParsedData.length){ toast('⚠️ Ingen data at gemme'); return; }
+
+  const reportData = {
+    date: todayStr(),
+    cards: _fuelParsedData.map(c => ({
+      kortNr: c.kortNr,
+      netto: c.netto,
+      rabat: c.rabat,
+      empId: _fuelCardMatches[c.kortNr] || null
+    })),
+    totalNetto: _fuelParsedData.reduce((s,r)=>s+r.netto,0),
+    totalRabat: _fuelParsedData.reduce((s,r)=>s+r.rabat,0),
+    totalCards: _fuelParsedData.length,
+    uploadedBy: currentUser,
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    setSyncing();
+    await _add('fuelReports', reportData);
+    setSynced();
+    toast('✅ Brændstofrapport gemt!');
+    loadFuelReports();
+  } catch(e){ toast('❌ '+e.message); setSynced(); }
+};
+
+// ── Load reports from Firestore ──
+function loadFuelReports(){
+  _snap('fuelReports', [orderBy('createdAt','desc')], snap => {
+    _fuelReports = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderFuelStats();
+  }, err => console.error('fuelReports:', err));
+}
+
+// ── Statistics views ──
+window.setFuelStatView = function(view, btn){
+  _fuelStatView = view;
+  document.querySelectorAll('#view-fuel .filter-chip').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderFuelStats();
+};
+
+function renderFuelStats(){
+  const el = document.getElementById('fuel-stats-content'); if(!el) return;
+
+  if(!_fuelReports.length){
+    el.innerHTML = '<div class="empty" style="padding:20px"><div class="empty-icon">⛽</div><div style="font-size:0.85rem">Ingen rapporter gemt endnu</div></div>';
+    return;
+  }
+
+  if(_fuelStatView === 'company') renderCompanyStats(el);
+  else if(_fuelStatView === 'employee') renderEmployeeStats(el);
+  else renderReportsList(el);
+}
+
+function renderCompanyStats(el){
+  const totalNetto = _fuelReports.reduce((s,r)=>s+(r.totalNetto||0),0);
+  const totalRabat = _fuelReports.reduce((s,r)=>s+(r.totalRabat||0),0);
+  const totalReports = _fuelReports.length;
+
+  // Group by month
+  const monthly = {};
+  _fuelReports.forEach(r => {
+    const m = (r.date||r.createdAt||'').slice(0,7); // YYYY-MM
+    if(!monthly[m]) monthly[m] = {netto:0, rabat:0, count:0};
+    monthly[m].netto += r.totalNetto||0;
+    monthly[m].rabat += r.totalRabat||0;
+    monthly[m].count++;
+  });
+
+  const months = Object.entries(monthly).sort((a,b)=>b[0].localeCompare(a[0]));
+  const maxNetto = Math.max(...months.map(m=>m[1].netto), 1);
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--accent2)">${fmtDK(totalNetto)}</div>
+        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL NETTO (DKK)</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--green)">${fmtDK(totalRabat)}</div>
+        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL RABAT (DKK)</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--yellow)">${totalReports}</div>
+        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">RAPPORTER</div>
+      </div>
+    </div>
+    <div style="font-size:0.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Månedsoversigt</div>
+    ${months.map(([m, d])=>{
+      const pct = Math.round(d.netto/maxNetto*100);
+      const label = new Date(m+'-01').toLocaleDateString('da-DK',{month:'long',year:'numeric'});
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px">
+          <span style="color:var(--text2)">${label}</span>
+          <span style="font-family:var(--mono);color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
+        </div>
+        <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderEmployeeStats(el){
+  // Aggregate all card entries across all reports by employee
+  const empTotals = {};
+  _fuelReports.forEach(r => {
+    (r.cards||[]).forEach(c => {
+      if(!c.empId) return;
+      if(!empTotals[c.empId]) empTotals[c.empId] = {netto:0, rabat:0, count:0};
+      empTotals[c.empId].netto += c.netto||0;
+      empTotals[c.empId].rabat += c.rabat||0;
+      empTotals[c.empId].count++;
+    });
+  });
+
+  const sorted = Object.entries(empTotals).sort((a,b)=>b[1].netto-a[1].netto);
+  const maxNetto = sorted.length ? sorted[0][1].netto : 1;
+
+  if(!sorted.length){
+    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen medarbejdere tildelt kort endnu. Upload en rapport og tildel kort til medarbejdere.</div>';
+    return;
+  }
+
+  el.innerHTML = sorted.map(([empId, d])=>{
+    const emp = employees.find(e=>e.id===empId) || {name:'Ukendt',tur:'-'};
+    const pct = Math.round(d.netto/maxNetto*100);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div>
+          <span style="font-weight:600;font-size:0.88rem">${emp.name}</span>
+          <span style="font-size:0.75rem;color:var(--text3);font-family:var(--mono);margin-left:6px">Tur ${emp.tur}</span>
+        </div>
+        <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
+      </div>
+      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:3px">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text3)">Rabat: ${fmtDK(d.rabat)} kr. · ${d.count} transaktioner</div>
+    </div>`;
+  }).join('');
+}
+
+function renderReportsList(el){
+  el.innerHTML = _fuelReports.map(r => {
+    const matched = (r.cards||[]).filter(c=>c.empId).length;
+    const total = (r.cards||[]).length;
+    return `<div class="log-item" style="margin-bottom:8px">
+      <div class="log-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge badge-yellow">⛽ ${total} kort</span>
+          <span style="font-size:0.82rem;color:var(--text2)">${fmtDK(r.totalNetto||0)} kr. netto</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.75rem;color:var(--text3)">${matched}/${total} tildelt</span>
+          <span class="log-meta">${fmtDate(r.date||r.createdAt?.split('T')[0]||'')}</span>
+          <button class="btn btn-danger btn-sm btn-icon" onclick="deleteFuelReport('${r.id}')">🗑️</button>
+        </div>
+      </div>
+      <div class="log-details" style="margin-top:6px">Rabat: ${fmtDK(r.totalRabat||0)} kr. · Uploadet af ${r.uploadedBy||'?'}</div>
+    </div>`;
+  }).join('');
+}
+
+window.deleteFuelReport = async function(id){
+  if(!confirm('Slet denne brændstofrapport?')) return;
+  try{
+    setSyncing(); await _delete('fuelReports',id); setSynced(); toast('🗑️ Rapport slettet');
+  }catch(e){ toast('❌ '+e.message); }
+};
+
+window.exportFuelCSV = function(){
+  if(!_fuelParsedData.length) return;
+  const totalNetto = _fuelParsedData.reduce((s,r)=>s+r.netto,0);
+  const totalRabat = _fuelParsedData.reduce((s,r)=>s+r.rabat,0);
+  let csv = 'Kort nr.;Medarbejder;Tur;Netto beløb;Rabat ekskl. moms\n';
+  _fuelParsedData.forEach(r=>{
+    const empId = _fuelCardMatches[r.kortNr];
+    const emp = empId ? employees.find(e=>e.id===empId) : null;
+    csv += `${r.kortNr};${emp?.name||'Ikke tildelt'};${emp?.tur||'-'};${r.netto.toFixed(2).replace('.',',')};${r.rabat.toFixed(2).replace('.',',')}\n`;
+  });
+  csv += `Total;;;${totalNetto.toFixed(2).replace('.',',')};${totalRabat.toFixed(2).replace('.',',')}\n`;
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='braendstof-rapport.csv'; a.click();
+};
+
+window.resetFuel = function(){
+  _fuelParsedData = []; _fuelCardMatches = {};
+  document.getElementById('fuel-results').style.display = 'none';
+  document.getElementById('fuel-file-input').value = '';
+};
 
 // ═══════════════════════════════════════════════════
 //  DOKUSCAN — AI FAKTURA SCANNER (via Cloudflare Proxy)
