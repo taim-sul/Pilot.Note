@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.8</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.9</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.8</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.9</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -968,6 +968,7 @@ const BUILTIN = [
   {id:'external_drive',icon:'🚛',label:'Kørsel for ekstern vognmand',color:'cyan',fields:[{id:'ext_company',label:'Vognmand / firma',type:'text',placeholder:'Firma ApS'},{id:'ext_hours',label:'Timer kørt',type:'number',placeholder:'8'},{id:'ext_date',label:'Dato',type:'date'}]},
   {id:'invoice',icon:'💸',label:'Regning modtaget',color:'red',fields:[{id:'inv_type',label:'Type',type:'select',options:['Bøde','Værksted','Vejhjælp','Selvrisiko','Andet']},{id:'inv_sender',label:'Afsender',type:'text',placeholder:'Fx Rigspolitiet'},{id:'inv_amount',label:'Beløb (kr.)',type:'number',placeholder:'1500'},{id:'inv_ref',label:'Reference',type:'text',placeholder:'Valgfri'}]},
   {id:'timeclock',icon:'🕐',label:'Tidsregistrering app',color:'cyan',fields:[{id:'tc_status',label:'Status',type:'select',options:['Tjekket ind','Tjekket ud','Glemt check-ind','Glemt check-ud','App-fejl']},{id:'tc_time',label:'Tidspunkt',type:'text',placeholder:'Fx 07:42'},{id:'tc_note',label:'Bemærkning',type:'text',placeholder:'Fx kunne ikke logge ind'}]},
+  {id:'vacation',icon:'🏖️',label:'Ferie',color:'blue',fields:[{id:'vac_from',label:'Fra dato',type:'date'},{id:'vac_to',label:'Til dato',type:'date'},{id:'vac_type',label:'Type',type:'select',options:['Ferie','Feriefridag','Afspadsering','Barns sygedag','Orlov']},{id:'vac_days',label:'Antal dage',type:'number',placeholder:'5'}]},
   {id:'other',icon:'📝',label:'Andet',color:'gray',fields:[]},
 ];
 function allCats(){ return [...BUILTIN,...customCats.map(c=>({...c,isCustom:true}))]; }
@@ -2020,7 +2021,7 @@ function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/
 // ═══════════════════════════════════════════════════
 //  BRÆNDSTOF RAPPORT (Masri + PIN)
 // ═══════════════════════════════════════════════════
-const FUEL_PIN = '1998'; // ← Skift denne PIN
+const FUEL_PIN = '1234'; // ← Skift denne PIN
 let _fuelUnlocked = false;
 let _fuelParsedData = [];
 let _fuelCardMatches = {}; // kortNr -> empId
