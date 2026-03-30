@@ -21,6 +21,32 @@
       --purple:#a855f7; --cyan:#06b6d4; --text:#f1f5f9; --text2:#94a3b8; --text3:#475569;
       --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif; --radius:12px;
     }
+    body.light {
+      --bg:#f0f2f5; --surface:#ffffff; --surface2:#f5f7fa; --border:#dce1e8;
+      --accent:#2563eb; --accent2:#3b82f6; --accent-glow:rgba(37,99,235,0.1);
+      --green:#16a34a; --red:#dc2626; --orange:#ea580c; --yellow:#ca8a04;
+      --purple:#9333ea; --cyan:#0891b2; --text:#1e293b; --text2:#475569; --text3:#94a3b8;
+    }
+    body.light::before{background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(37,99,235,0.06) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(147,51,234,0.04) 0%,transparent 60%);}
+    body.light .topbar{background:rgba(255,255,255,0.92);}
+    body.light .badge-red{background:rgba(220,38,38,0.1);color:#dc2626;}
+    body.light .badge-orange{background:rgba(234,88,12,0.1);color:#ea580c;}
+    body.light .badge-green{background:rgba(22,163,74,0.1);color:#16a34a;}
+    body.light .badge-blue{background:rgba(37,99,235,0.1);color:#2563eb;}
+    body.light .badge-yellow{background:rgba(202,138,4,0.1);color:#ca8a04;}
+    body.light .badge-purple{background:rgba(147,51,234,0.1);color:#9333ea;}
+    body.light .badge-cyan{background:rgba(8,145,178,0.1);color:#0891b2;}
+    body.light .badge-gray{background:rgba(100,116,139,0.1);color:#64748b;}
+    body.light .emp-card:hover{border-color:var(--accent);}
+    body.light .nav-btn.active{box-shadow:0 0 12px rgba(37,99,235,0.2);}
+    body.light .fab{box-shadow:0 4px 18px rgba(37,99,235,0.3);}
+    body.light .btn-primary:hover:not(:disabled){box-shadow:0 0 12px rgba(37,99,235,0.2);}
+    body.light .toast{background:var(--surface);border:1px solid var(--border);color:var(--text);box-shadow:0 4px 18px rgba(0,0,0,0.15);}
+    body.light #user-login-screen{background:var(--bg);}
+    body.light .login-user-btn{background:var(--surface);border-color:var(--border);}
+    body.light .login-user-btn:hover{border-color:var(--purple);background:rgba(147,51,234,0.05);}
+    body.light #loading-screen{background:var(--bg);}
+    body.light .audit-by{background:rgba(147,51,234,0.1);color:#9333ea;}
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;}
     body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(59,130,246,0.12) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(168,85,247,0.08) 0%,transparent 60%);pointer-events:none;z-index:0;}
@@ -240,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.4</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v2.6</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -269,10 +295,11 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.4</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v2.6</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleTheme()" id="theme-toggle-btn" title="Skift tema">🌙</button>
         <button class="btn btn-ghost btn-sm" onclick="showView('cards',null)">💳 Kort</button>
         <button class="btn btn-ghost btn-sm" onclick="showExportModal()">⬇ Udtræk</button>
       </div>
@@ -355,8 +382,9 @@
   <div class="view" id="view-cards">
     <div class="view-title">Kort & Brikker</div>
     <div class="view-sub">Brændstofkort, ladebrikker, bilnøgler og Evotec brikker</div>
-    <div style="display:flex;gap:8px;margin-bottom:16px">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" onclick="openCardModal()">+ Tildel kort/brik</button>
+      <button class="btn btn-ghost btn-sm" id="card-view-toggle" onclick="toggleCardHistoryView()">📜 Vis historik</button>
     </div>
     <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" placeholder="Søg medarbejder..." id="card-search" oninput="renderCards()" /></div>
     <div class="filter-bar">
@@ -366,7 +394,12 @@
       <button class="filter-chip" onclick="setCardFilter('key',this)">🔑 Bilnøgle</button>
       <button class="filter-chip" onclick="setCardFilter('evotec',this)">📟 Evotec</button>
     </div>
+
+    <!-- Normal view -->
     <div id="cards-list"></div>
+
+    <!-- History view -->
+    <div id="cards-history" style="display:none"></div>
   </div>
 
   <!-- INDSTILLINGER -->
@@ -765,6 +798,8 @@ setTimeout(() => { if (!_appShown) showApp(); }, 5000);
 
 function showApp() {
   _appShown = true;
+  // Apply saved theme immediately
+  if(localStorage.getItem('pn_theme') === 'light') document.body.classList.add('light');
   document.getElementById('loading-screen').style.display = 'none';
   // If user already chosen in this session, skip login
   if(currentUser && sessionStorage.getItem('pn_session_user')) {
@@ -794,6 +829,7 @@ window.loginCustom = function(){
 // ═══════════════════════════════════════════════════
 function initUI() {
   initUserSelector();
+  initTheme();
   const today = todayStr();
   const mo = new Date(Date.now()-30*864e5).toISOString().split('T')[0];
   document.getElementById('log-date').value   = today;
@@ -812,6 +848,28 @@ function initUI() {
     m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
   document.getElementById('import-file').addEventListener('change', previewImport);
   renderCatGrid(); renderOverview(); renderHistory(); renderCards();
+}
+
+// ═══════════════════════════════════════════════════
+//  THEME TOGGLE (LYS / MØRK)
+// ═══════════════════════════════════════════════════
+function initTheme(){
+  const saved = localStorage.getItem('pn_theme');
+  if(saved === 'light') document.body.classList.add('light');
+  updateThemeBtn();
+}
+window.toggleTheme = function(){
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  localStorage.setItem('pn_theme', isLight ? 'light' : 'dark');
+  updateThemeBtn();
+  // Update meta theme-color
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.content = isLight ? '#f0f2f5' : '#0a0f1e';
+};
+function updateThemeBtn(){
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
 }
 
 function todayStr(){ return new Date().toISOString().split('T')[0]; }
@@ -1337,6 +1395,110 @@ function renderCards(){
   }).join('');
 }
 window.renderCards = renderCards;
+
+let _cardHistoryMode = false;
+window.toggleCardHistoryView = function(){
+  _cardHistoryMode = !_cardHistoryMode;
+  const btn = document.getElementById('card-view-toggle');
+  const listEl = document.getElementById('cards-list');
+  const histEl = document.getElementById('cards-history');
+  if(_cardHistoryMode){
+    btn.innerHTML = '📋 Vis aktive';
+    listEl.style.display = 'none';
+    histEl.style.display = 'block';
+    renderCardHistory();
+  } else {
+    btn.innerHTML = '📜 Vis historik';
+    listEl.style.display = 'block';
+    histEl.style.display = 'none';
+  }
+};
+
+function renderCardHistory(){
+  const histEl = document.getElementById('cards-history'); if(!histEl) return;
+  const q = (document.getElementById('card-search')?.value||'').toLowerCase();
+  const tl = {fuel:'Brændstofkort',charge:'Ladebrik',key:'Ekstra bilnøgle',evotec:'Evotec brik'};
+  const tc = {fuel:'green',charge:'cyan',key:'yellow',evotec:'purple'};
+  const ti = {fuel:'⛽',charge:'🔋',key:'🔑',evotec:'📟'};
+
+  // Group cards by employee
+  const empMap = {};
+  cards.forEach(c => {
+    if(_cardFilter && c.type !== _cardFilter) return;
+    const emp = employees.find(e => e.id === c.empId);
+    if(q && emp && !emp.name.toLowerCase().includes(q) && !emp.tur.toLowerCase().includes(q)) return;
+    const key = c.empId;
+    if(!empMap[key]) empMap[key] = [];
+    empMap[key].push(c);
+  });
+
+  if(!Object.keys(empMap).length){
+    histEl.innerHTML = '<div class="empty"><div class="empty-icon">📜</div><div style="font-size:0.9rem">Ingen historik fundet</div></div>';
+    return;
+  }
+
+  let html = '';
+  Object.entries(empMap).sort((a,b) => {
+    const ea = employees.find(e=>e.id===a[0]);
+    const eb = employees.find(e=>e.id===b[0]);
+    return (ea?.name||'').localeCompare(eb?.name||'');
+  }).forEach(([empId, empCards]) => {
+    const emp = employees.find(e => e.id === empId) || {name:'Ukendt',tur:'-'};
+    const ini = emp.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+    // Sort by date descending
+    empCards.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+    const activeCards = empCards.filter(c => c.active);
+    const returnedCards = empCards.filter(c => !c.active);
+
+    html += `<div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div class="emp-avatar" style="width:36px;height:36px;font-size:0.65rem">${ini}</div>
+        <div>
+          <div style="font-weight:700;font-size:0.92rem">${emp.name}</div>
+          <div style="font-size:0.78rem;color:var(--accent2);font-family:var(--mono)">Tur ${emp.tur} · ${empCards.length} kort/brikker</div>
+        </div>
+      </div>`;
+
+    // Active cards
+    if(activeCards.length){
+      html += `<div style="font-size:0.75rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">● Aktive</div>`;
+      activeCards.forEach(c => {
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px;margin-bottom:6px">
+          <div>
+            <span class="badge badge-${tc[c.type]||'gray'}" style="margin-right:6px">${ti[c.type]||'💳'} ${tl[c.type]||c.type}</span>
+            ${c.number?`<span style="font-size:0.82rem;color:var(--text2);font-family:var(--mono)">${c.number}</span>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono)">${fmtDate(c.date)}</span>
+            <button class="btn btn-danger btn-sm btn-icon" style="padding:3px 6px;font-size:0.7rem" onclick="returnCard('${c.id}')">↩️</button>
+          </div>
+        </div>`;
+      });
+    }
+
+    // Returned cards (history)
+    if(returnedCards.length){
+      html += `<div style="font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:${activeCards.length?'12':'0'}px 0 8px">↩ Historik (afleveret)</div>`;
+      returnedCards.forEach(c => {
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);opacity:0.7">
+          <div>
+            <span style="font-size:0.78rem;color:var(--text3)">${ti[c.type]||'💳'} ${tl[c.type]||c.type}</span>
+            ${c.number?`<span style="font-size:0.78rem;color:var(--text3);font-family:var(--mono);margin-left:6px">${c.number}</span>`:''}
+          </div>
+          <div style="font-size:0.7rem;color:var(--text3);font-family:var(--mono);text-align:right">
+            <div>${fmtDate(c.date)} → ${c.returnedDate?fmtDate(c.returnedDate):'?'}</div>
+          </div>
+        </div>`;
+      });
+    }
+
+    html += `</div>`;
+  });
+
+  histEl.innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════
 //  CUSTOM CATEGORIES
