@@ -266,7 +266,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.1</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.2</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +295,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.1</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.2</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -2335,23 +2335,29 @@ async function handleFuelXLSX(file){
     if(!rows.length){ showFuelError('Filen er tom.'); status.style.display='none'; return; }
     const cols = Object.keys(rows[0]);
     const find = (cands) => { const lc=cols.map(c=>[c,c.toLowerCase().trim()]); for(const ca of cands){const m=lc.find(([,l])=>l===ca.toLowerCase());if(m)return m[0]} return null; };
-    const keyCol = find(['chargeKeyName','chargeKeyId','kort','card','kortnr']);
+    // chargeKeyId bruges til matching, chargeKeyName til visning
+    const idCol = find(['chargeKeyId','chargeKeyName','kort','card','kortnr']);
+    const nameCol = find(['chargeKeyName']); // visningsnavn (kan være null)
     const nettoCol = find(['subAmount','netto','netto beløb','net']);
     const momsCol = find(['vat','moms']);
     const bruttoCol = find(['amount','brutto','brutto beløb','total']);
     const kwhCol = find(['kwh','energy','energi']);
-    if(!keyCol){ showFuelError('Kunne ikke finde en kort-kolonne.'); status.style.display='none'; return; }
+    if(!idCol){ showFuelError('Kunne ikke finde en kort-kolonne (chargeKeyId/chargeKeyName).'); status.style.display='none'; return; }
     const cardMap = {};
     const num = v => typeof v==='number' ? v : parseFloat(v)||0;
     for(const row of rows){
-      const key = String(row[keyCol]||'').trim();
-      if(!key) continue;
-      if(!cardMap[key]) cardMap[key] = {kortNr:key, netto:0, moms:0, brutto:0, kwh:0, rabat:0, antal:0};
-      cardMap[key].netto += num(row[nettoCol]);
-      cardMap[key].moms += num(row[momsCol]);
-      cardMap[key].brutto += num(row[bruttoCol]);
-      cardMap[key].kwh += num(row[kwhCol]);
-      cardMap[key].antal += 1;
+      const id = String(row[idCol]||'').trim();
+      if(!id) continue;
+      if(!cardMap[id]) cardMap[id] = {
+        kortNr: id,
+        kortName: nameCol ? String(row[nameCol]||'').trim() : id,
+        netto:0, moms:0, brutto:0, kwh:0, rabat:0, antal:0
+      };
+      cardMap[id].netto += num(row[nettoCol]);
+      cardMap[id].moms += num(row[momsCol]);
+      cardMap[id].brutto += num(row[bruttoCol]);
+      cardMap[id].kwh += num(row[kwhCol]);
+      cardMap[id].antal += 1;
     }
     _fuelParsedData = Object.values(cardMap).sort((a,b)=>a.netto-b.netto);
     _fuelDataMode = 'charging';
@@ -2367,9 +2373,32 @@ function parseFuelDK(s){ return s ? parseFloat(s.replace(/\./g,'').replace(',','
 function autoMatchFuelCards(){
   _fuelCardMatches = {};
   _fuelParsedData.forEach(c => {
-    const match = cards.find(fc => (fc.type==='fuel'||fc.type==='charge') && fc.number && fc.number.includes(c.kortNr) && fc.active);
+    // 1. Eksakt match: chargeKeyId === card.number
+    let match = cards.find(fc =>
+      (fc.type==='fuel'||fc.type==='charge') && fc.number &&
+      fc.number.trim() === c.kortNr.trim() && fc.active
+    );
+    // 2. Delvis match: card.number indeholder kortNr eller omvendt
+    if(!match){
+      match = cards.find(fc =>
+        (fc.type==='fuel'||fc.type==='charge') && fc.number && fc.active &&
+        (fc.number.includes(c.kortNr) || c.kortNr.includes(fc.number))
+      );
+    }
+    // 3. Match via visningsnavn (kortName) hvis tilgængeligt
+    if(!match && c.kortName && c.kortName !== c.kortNr){
+      match = cards.find(fc =>
+        (fc.type==='fuel'||fc.type==='charge') && fc.number && fc.active &&
+        (fc.number.includes(c.kortName) || c.kortName.includes(fc.number))
+      );
+    }
     if(match) _fuelCardMatches[c.kortNr] = match.empId;
   });
+
+  // Log match results
+  const matched = Object.keys(_fuelCardMatches).length;
+  const total = _fuelParsedData.length;
+  if(matched > 0) toast(`🔗 ${matched}/${total} kort auto-matchet til medarbejdere`);
 }
 
 function showFuelError(msg){
@@ -2423,7 +2452,7 @@ function renderFuelResults(){
     if(_fuelDataMode==='euroshell' && c.brutto) valueDisplay += ` (${fmtDK(c.brutto)} brutto)`;
     if(_fuelDataMode==='shell' && c.rabat) valueDisplay += ` (rabat: ${fmtDK(c.rabat)})`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-family:var(--mono);font-size:0.78rem;font-weight:700;color:var(--yellow);min-width:50px">${c.kortNr}</span>
+      <span style="font-family:var(--mono);font-size:0.78rem;font-weight:700;color:var(--yellow);min-width:50px">${c.kortNr}${c.kortName && c.kortName!==c.kortNr ? '<br><span style="font-size:0.65rem;color:var(--text3);font-weight:400">'+c.kortName+'</span>':''}</span>
       <span style="font-family:var(--mono);font-size:0.72rem;color:var(--accent2);min-width:80px">${valueDisplay}</span>
       <select style="flex:1;min-width:0" data-kort="${c.kortNr}" onchange="matchFuelCard('${c.kortNr}',this.value)" class="fuel-emp-sel">
         ${empOpts.replace(`value="${matched}"`, `value="${matched}" selected`)}
