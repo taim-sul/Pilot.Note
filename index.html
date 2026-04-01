@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.4</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.5</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.4</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.5</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -1612,6 +1612,7 @@ function renderCards(){
           <span class="log-meta">${fmtDate(c.date)}</span>
           ${c.active?`<button class="btn btn-danger btn-sm btn-icon" onclick="returnCard('${c.id}')">↩️</button>`:''}
           <button class="btn btn-ghost btn-sm btn-icon" onclick="editCardName('${c.id}')" title="Rediger">✏️</button>
+        </div>
       </div>
       ${c.number?`<div class="log-details">Nr./ID: <strong>${c.number}</strong></div>`:''}
       ${c.returnedDate?`<div class="log-details" style="color:var(--text3)">Afleveret: ${fmtDate(c.returnedDate)}</div>`:''}
@@ -2167,7 +2168,41 @@ window.exportExcel = function(){
     });
   }
 
-  // ── 5. Brændstof fane (kun Masri) ──
+  // ── 5. Ferier & Fridage ──
+  {
+    const from = document.getElementById('exp-from').value;
+    const to = document.getElementById('exp-to').value;
+    const empFilter = document.getElementById('exp-emp').value;
+    const vacInPeriod = (vacRequests||[]).filter(r => {
+      if(r.status!=='approved') return false;
+      if(from && r.endDate < from) return false;
+      if(to && r.startDate > to) return false;
+      if(empFilter && r.empId !== empFilter) return false;
+      return true;
+    });
+    if(vacInPeriod.length){
+      const d = vacInPeriod.map(r => {
+        const emp = employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
+        const days = Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+        return {
+          'Tur nr.': emp.tur,
+          'Navn': emp.name,
+          'Type': VAC_TYPE_LABELS[r.type]||r.type,
+          'Fra dato': r.startDate,
+          'Til dato': r.endDate,
+          'Antal dage': days,
+          'Status': r.status==='approved'?'Godkendt':r.status==='pending'?'Afventer':'Afslået',
+          'Note': r.note||'',
+          'Registreret af': r.registeredBy||''
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(d);
+      ws['!cols'] = [10,22,16,12,12,10,10,20,14].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws, 'Ferier og Fridage');
+    }
+  }
+
+  // ── 6. Brændstof fane (kun Masri) ──
   if(incFuel && _fuelReports && _fuelReports.length){
     // Company summary
     const fuelSummary = [];
@@ -2242,6 +2277,16 @@ window.exportPDF = function(){
   <h1>Pilot.Note — Udtræk</h1><div class="meta">Periode: ${from} → ${to} | ${empName} | ${filtered.length} noteringer</div>
   <h2>📋 Noteringer</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Kategori</th><th>Detaljer</th><th>Kommentar</th></tr></thead><tbody>${rows}</tbody></table>
   ${invRows?`<h2>💸 Regninger</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Type</th><th>Afsender</th><th>Beløb</th><th>Reference</th></tr></thead><tbody>${invRows}</tbody></table>`:''}
+  ${(()=>{
+    const vacs=(vacRequests||[]).filter(r=>r.status==='approved'&&!(from&&r.endDate<from)&&!(to&&r.startDate>to));
+    const empF=document.getElementById('exp-emp').value;
+    const fv=empF?vacs.filter(r=>r.empId===empF):vacs;
+    if(!fv.length) return '';
+    const vacRows=fv.map(r=>{const e=employees.find(x=>x.id===r.empId)||{};const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+      return '<tr><td>'+(e.tur||'')+'</td><td>'+(e.name||'')+'</td><td>'+({ferie:'Ferie',fridag:'Fridag',feriefridag:'Feriefridag',afspadsering:'Afspadsering',barns_sygedag:'Barns sygedag',orlov:'Orlov'}[r.type]||r.type)+'</td><td>'+r.startDate+'</td><td>'+r.endDate+'</td><td>'+days+'</td><td>'+(r.note||'')+'</td></tr>';
+    }).join('');
+    return '<h2>🏖️ Ferier og Fridage</h2><table><thead><tr><th>Tur</th><th>Navn</th><th>Type</th><th>Fra</th><th>Til</th><th>Dage</th><th>Note</th></tr></thead><tbody>'+vacRows+'</tbody></table>';
+  })()}
   <script>window.print();window.onafterprint=()=>window.close();<\/script></body></html>`);
   w.document.close(); closeModal('export-modal');
 };
