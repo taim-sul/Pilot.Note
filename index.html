@@ -47,6 +47,43 @@
     body.light .login-user-btn:hover{border-color:var(--purple);background:rgba(147,51,234,0.05);}
     body.light #loading-screen{background:var(--bg);}
     body.light .audit-by{background:rgba(147,51,234,0.1);color:#9333ea;}
+
+    /* ── VACATION MODULE ── */
+    .vac-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .vac-cal-nav h3{font-size:1.1rem;font-weight:700}
+    .vac-cal-nav button{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 12px;cursor:pointer;font-size:1rem}
+    .vac-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:10px}
+    .vac-day-name{text-align:center;font-size:0.65rem;font-weight:600;color:var(--text3);padding:4px 0}
+    .vac-day{min-height:34px;border-radius:5px;padding:2px;background:var(--surface);border:1px solid var(--border);cursor:pointer;position:relative;transition:border-color .15s}
+    .vac-day:hover{border-color:var(--accent)}
+    .vac-day.empty{background:transparent;border-color:transparent;cursor:default}
+    .vac-day.today{border-color:var(--accent)}
+    .vac-day .vd-num{font-size:0.65rem;font-weight:500;color:var(--text3);line-height:1}
+    .vac-day.today .vd-num{color:var(--accent);font-weight:700}
+    .vac-day .vd-dots{display:flex;flex-wrap:wrap;gap:1px;margin-top:2px}
+    .vac-dot{width:6px;height:6px;border-radius:2px}
+    .vac-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+    .vac-legend-item{display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text3)}
+    .vac-legend-dot{width:8px;height:8px;border-radius:3px}
+    .vac-req-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden}
+    .vac-req-header{padding:12px 14px;display:flex;align-items:center;gap:10px}
+    .vac-req-info{flex:1}
+    .vac-req-name{font-size:0.9rem;font-weight:600}
+    .vac-req-dates{font-size:0.75rem;color:var(--text3);font-family:var(--mono)}
+    .vac-req-actions{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)}
+    .vac-req-actions button{padding:10px;background:none;border:none;font-family:var(--sans);font-size:0.85rem;font-weight:600;cursor:pointer}
+    .vac-req-actions .vac-reject{color:var(--red);border-right:1px solid var(--border)}
+    .vac-req-actions .vac-reject:hover{background:rgba(239,68,68,0.06)}
+    .vac-req-actions .vac-approve{color:var(--green)}
+    .vac-req-actions .vac-approve:hover{background:rgba(34,197,94,0.06)}
+    .vac-status{font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px}
+    .vac-status.pending{background:rgba(234,179,8,0.12);color:var(--yellow)}
+    .vac-status.approved{background:rgba(34,197,94,0.12);color:var(--green)}
+    .vac-status.rejected{background:rgba(239,68,68,0.12);color:var(--red)}
+    .vac-subtabs{display:flex;gap:4px;margin-bottom:14px}
+    .vac-subtab{font-family:var(--sans);font-size:0.75rem;font-weight:600;padding:5px 12px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s}
+    .vac-subtab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+    .vac-pending-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--yellow);margin-left:4px}
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;}
     body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(59,130,246,0.12) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(168,85,247,0.08) 0%,transparent 60%);pointer-events:none;z-index:0;}
@@ -266,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.2</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.4</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -295,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.2</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.4</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -321,6 +358,7 @@
     <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
     <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
     <button class="nav-btn" id="fuel-nav-btn" style="display:none" onclick="showView('fuel',this)">⛽ Brændstof</button>
+    <button class="nav-btn" onclick="showView('vacation',this)">🏖️ Ferie</button>
     <button class="nav-btn" onclick="showView('settings',this)">⚙️ Indstillinger</button>
     <button class="nav-btn" onclick="showView('auditlog',this)">🔍 Revisionslog</button>
   </nav>
@@ -330,8 +368,9 @@
     <div class="view-title">Dagens overblik</div>
     <div class="view-sub" id="today-date-label"></div>
     <div class="stats-strip" id="stats-strip"></div>
+    <div id="overview-vac-banner"></div>
     <div class="card">
-      <div class="section-title">📅 Seneste noteringer</div>
+      <div class="section-title">📅 Seneste noteringer (5)</div>
       <div id="recent-logs-list"></div>
     </div>
   </div>
@@ -516,6 +555,81 @@
           <button class="filter-chip" onclick="setFuelStatView('reports',this)">📋 Rapporter</button>
         </div>
         <div id="fuel-stats-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FERIE & FRIDAGE -->
+  <div class="view" id="view-vacation">
+    <div class="row-between" style="margin-bottom:14px">
+      <div><div class="view-title">🏖️ Ferier & Fridage</div><div class="view-sub">Kalender, anmodninger og godkendelse</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('vac-req-modal')">+ Ny anmodning</button>
+    </div>
+
+    <!-- Sub tabs -->
+    <div class="vac-subtabs">
+      <button class="vac-subtab active" onclick="setVacView('calendar',this)">📅 Kalender</button>
+      <button class="vac-subtab" onclick="setVacView('pending',this)">⏳ Afventer<span id="vac-pending-dot"></span></button>
+      <button class="vac-subtab" onclick="setVacView('all',this)">📋 Alle</button>
+    </div>
+
+    <!-- Calendar view -->
+    <div id="vac-calendar-view">
+      <div class="card">
+        <div class="vac-cal-nav">
+          <button onclick="vacChangeMonth(-1)">‹</button>
+          <h3 id="vac-cal-title"></h3>
+          <button onclick="vacChangeMonth(1)">›</button>
+        </div>
+        <div id="vac-legend" class="vac-legend"></div>
+        <div class="vac-cal-grid" id="vac-cal-grid"></div>
+      </div>
+      <div id="vac-month-list" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Pending view -->
+    <div id="vac-pending-view" style="display:none">
+      <div id="vac-pending-list"></div>
+    </div>
+
+    <!-- All requests view -->
+    <div id="vac-all-view" style="display:none">
+      <div class="filter-bar" style="margin-bottom:12px">
+        <button class="filter-chip active" onclick="setVacFilter('all',this)">Alle</button>
+        <button class="filter-chip" onclick="setVacFilter('approved',this)">✅ Godkendt</button>
+        <button class="filter-chip" onclick="setVacFilter('pending',this)">⏳ Afventer</button>
+        <button class="filter-chip" onclick="setVacFilter('rejected',this)">❌ Afslået</button>
+      </div>
+      <div id="vac-all-list"></div>
+    </div>
+  </div>
+
+  <!-- VAC REQUEST MODAL -->
+  <div class="modal-overlay" id="vac-req-modal">
+    <div class="modal">
+      <div class="modal-title"><span>🏖️ Ny ferie/fridags-anmodning</span><button class="modal-close" onclick="closeModal('vac-req-modal')">✕</button></div>
+      <div class="form-group"><label>Medarbejder</label><select id="vac-req-emp"></select></div>
+      <div class="form-group"><label>Type</label>
+        <select id="vac-req-type">
+          <option value="ferie">🌴 Ferie</option>
+          <option value="fridag">🏖 Fridag</option>
+          <option value="feriefridag">📅 Feriefridag</option>
+          <option value="afspadsering">⏰ Afspadsering</option>
+          <option value="barns_sygedag">👶 Barns sygedag</option>
+          <option value="orlov">📋 Orlov</option>
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Fra dato</label><input type="date" id="vac-req-start" /></div>
+        <div class="form-group"><label>Til dato</label><input type="date" id="vac-req-end" /></div>
+      </div>
+      <div class="form-group"><label>Note (valgfri)</label><textarea id="vac-req-note" placeholder="Evt. kommentar..."></textarea></div>
+      <div class="form-group" style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:0.83rem;color:var(--text2)">
+        ✍️ Registreret af: <span id="vac-req-by" style="color:#d8b4fe;font-family:var(--mono);font-weight:700">—</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('vac-req-modal')">Annuller</button>
+        <button class="btn btn-primary" style="flex:1" id="vac-save-btn" onclick="saveVacRequest()">Send anmodning</button>
       </div>
     </div>
   </div>
@@ -929,6 +1043,7 @@ function initUI() {
     m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
   document.getElementById('import-file').addEventListener('change', previewImport);
   renderCatGrid(); renderOverview(); renderHistory(); renderCards();
+  startVacListener(); // Start listening for vacation requests (notifications)
 }
 
 // ═══════════════════════════════════════════════════
@@ -995,6 +1110,7 @@ function showView(id,btn){
   if(id==='auditlog') renderAuditLog();
   if(id==='scanner') initScanner();
   if(id==='fuel' && !_fuelUnlocked) { /* PIN gate shows by default */ }
+  if(id==='vacation') initVacation();
 }
 window.showView = showView;
 
@@ -1447,6 +1563,22 @@ window.returnCard = async function(id){
   catch(e){ toast('❌ '+e.message); }
 };
 
+window.editCardName = async function(id){
+  const card = cards.find(c=>c.id===id); if(!card) return;
+  const tl={fuel:'Brændstofkort',charge:'Ladebrik',key:'Bilnøgle',evotec:'Evotec brik'};
+  const newNumber = prompt(`Rediger ${tl[card.type]||'kort'} nr./navn:`, card.number||'');
+  if(newNumber===null) return;
+  const newNote = prompt('Rediger note (valgfri):', card.note||'');
+  try{
+    setSyncing();
+    const updates = {number: newNumber.trim()};
+    if(newNote!==null) updates.note = newNote.trim();
+    await _update('cards', id, updates);
+    setSynced();
+    toast('✅ Kort opdateret');
+  }catch(e){ toast('❌ '+e.message); }
+};
+
 window.setCardFilter = function(f,btn){
   _cardFilter=f;
   document.querySelectorAll('#view-cards .filter-chip').forEach(b=>b.classList.remove('active'));
@@ -1479,7 +1611,7 @@ function renderCards(){
           ${c.active?'<span class="badge badge-green">Aktiv</span>':'<span class="badge badge-gray">Afleveret</span>'}
           <span class="log-meta">${fmtDate(c.date)}</span>
           ${c.active?`<button class="btn btn-danger btn-sm btn-icon" onclick="returnCard('${c.id}')">↩️</button>`:''}
-        </div>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="editCardName('${c.id}')" title="Rediger">✏️</button>
       </div>
       ${c.number?`<div class="log-details">Nr./ID: <strong>${c.number}</strong></div>`:''}
       ${c.returnedDate?`<div class="log-details" style="color:var(--text3)">Afleveret: ${fmtDate(c.returnedDate)}</div>`:''}
@@ -1681,19 +1813,47 @@ window.deleteCustomCat = async function(id){
 function renderOverview(){
   const today=todayStr();
   const el=document.getElementById('stats-strip'); if(!el) return;
+
+  // Count vacations active today
+  const vacToday = (vacRequests||[]).filter(r=>r.status==='approved'&&r.startDate<=today&&r.endDate>=today);
+  const vacPending = (vacRequests||[]).filter(r=>r.status==='pending');
+
   el.innerHTML=[
     {num:employees.length, lbl:'Medarbejdere'},
     {num:logs.filter(l=>l.date===today).length, lbl:'Noteringer i dag'},
     {num:logs.filter(l=>l.category==='sick'&&l.date===today).length, lbl:'Syge i dag'},
     {num:logs.filter(l=>l.category==='late'&&l.date===today).length, lbl:'Forsent i dag'},
     {num:logs.filter(l=>l.category==='noshow'&&l.date===today).length, lbl:'Mødte ikke op'},
+    {num:vacToday.length, lbl:'På ferie i dag'},
+    {num:vacPending.length, lbl:'Ferie afventer'},
     {num:logs.filter(l=>l.category==='invoice').length, lbl:'Regninger total'},
     {num:cards.filter(c=>c.active).length, lbl:'Aktive kort'},
     {num:logs.length, lbl:'Total noteringer'},
   ].map(s=>`<div class="stat-chip"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join('');
+
+  // Vacation banner on overview
+  const vacBanner = document.getElementById('overview-vac-banner');
+  if(vacBanner){
+    if(vacToday.length){
+      vacBanner.innerHTML = `<div class="card" style="border-left:3px solid var(--green);margin-bottom:14px">
+        <div class="section-title" style="margin-bottom:10px">🏖️ På ferie i dag (${vacToday.length})</div>
+        ${vacToday.map(r=>{
+          const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
+          const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="font-weight:600;font-size:0.88rem">${emp.name} <span style="color:var(--text3);font-size:0.78rem">(${emp.tur})</span></span>
+            <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono)">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)} · ${days}d</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    } else {
+      vacBanner.innerHTML = '';
+    }
+  }
+
   const cm=catMap();
   const rEl=document.getElementById('recent-logs-list'); if(!rEl) return;
-  rEl.innerHTML=logs.slice(0,10).map(l=>renderLogItem(l,cm,false)).join('')
+  rEl.innerHTML=logs.slice(0,5).map(l=>renderLogItem(l,cm,false)).join('')
     ||`<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen noteringer endnu</div></div>`;
 }
 
@@ -2136,6 +2296,306 @@ function toast(msg){
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 
+
+// ═══════════════════════════════════════════════════
+//  FERIER & FRIDAGE
+// ═══════════════════════════════════════════════════
+const VAC_COLORS = ['#3B82F6','#10B981','#F59E0B','#EF4444','#A78BFA','#EC4899','#06B6D4','#F97316','#84CC16','#6366F1'];
+const VAC_TYPE_LABELS = {ferie:'🌴 Ferie',fridag:'🏖 Fridag',feriefridag:'📅 Feriefridag',afspadsering:'⏰ Afspadsering',barns_sygedag:'👶 Barns sygedag',orlov:'📋 Orlov'};
+
+let vacRequests = [];
+let _vacMonth = new Date().getMonth();
+let _vacYear = new Date().getFullYear();
+let _vacView = 'calendar';
+let _vacFilter = 'all';
+
+// ── Firestore listener ──
+function startVacListener(){
+  _snap('vacRequests', [orderBy('createdAt','desc')], snap => {
+    const prev = vacRequests.filter(r=>r.status==='pending').length;
+    vacRequests = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderVacation();
+    updateVacPendingDot();
+    // Notify on new pending
+    const now = vacRequests.filter(r=>r.status==='pending').length;
+    if(now > prev && prev >= 0) vacNotify('📋 Ny ferieanmodning', `${now} anmodning${now>1?'er':''} afventer godkendelse`);
+  }, err => console.error('vacRequests:', err));
+}
+
+function getVacEmpColor(empId){
+  const idx = employees.findIndex(e=>e.id===empId);
+  return idx>=0 ? VAC_COLORS[idx % VAC_COLORS.length] : '#666';
+}
+
+// ── Views ──
+window.setVacView = function(view, btn){
+  _vacView = view;
+  document.querySelectorAll('.vac-subtab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('vac-calendar-view').style.display = view==='calendar'?'block':'none';
+  document.getElementById('vac-pending-view').style.display = view==='pending'?'block':'none';
+  document.getElementById('vac-all-view').style.display = view==='all'?'block':'none';
+  renderVacation();
+};
+
+window.setVacFilter = function(f, btn){
+  _vacFilter = f;
+  document.querySelectorAll('#vac-all-view .filter-chip').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderVacAllList();
+};
+
+// ── Calendar ──
+window.vacChangeMonth = function(dir){
+  _vacMonth += dir;
+  if(_vacMonth<0){_vacMonth=11;_vacYear--}
+  if(_vacMonth>11){_vacMonth=0;_vacYear++}
+  renderVacCalendar();
+};
+
+function renderVacation(){
+  renderVacCalendar();
+  renderVacPendingList();
+  renderVacAllList();
+  renderVacMonthList();
+}
+
+function renderVacCalendar(){
+  const approved = vacRequests.filter(r=>r.status==='approved');
+  const pending = vacRequests.filter(r=>r.status==='pending');
+  const months = ['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'];
+  const titleEl = document.getElementById('vac-cal-title');
+  if(titleEl) titleEl.textContent = months[_vacMonth]+' '+_vacYear;
+
+  const grid = document.getElementById('vac-cal-grid'); if(!grid) return;
+  grid.innerHTML = '';
+
+  // Day names
+  ['Ma','Ti','On','To','Fr','Lø','Sø'].forEach(d=>{
+    const el = document.createElement('div'); el.className='vac-day-name'; el.textContent=d; grid.appendChild(el);
+  });
+
+  const first = new Date(_vacYear, _vacMonth, 1);
+  let startDay = first.getDay()-1; if(startDay<0) startDay=6;
+  const daysInMonth = new Date(_vacYear, _vacMonth+1, 0).getDate();
+  const today = todayStr();
+
+  for(let i=0;i<startDay;i++){
+    const el=document.createElement('div'); el.className='vac-day empty'; grid.appendChild(el);
+  }
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr = `${_vacYear}-${String(_vacMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const el = document.createElement('div');
+    el.className = 'vac-day'+(dateStr===today?' today':'');
+
+    const numEl = document.createElement('div'); numEl.className='vd-num'; numEl.textContent=d;
+    el.appendChild(numEl);
+
+    // Find who is on vacation this day
+    const dotsEl = document.createElement('div'); dotsEl.className='vd-dots';
+    const allReqs = [...approved,...pending];
+    allReqs.filter(r=>r.startDate<=dateStr && r.endDate>=dateStr).forEach(r=>{
+      const dot = document.createElement('div');
+      dot.className = 'vac-dot';
+      dot.style.background = getVacEmpColor(r.empId);
+      if(r.status==='pending') dot.style.opacity='0.4';
+      dotsEl.appendChild(dot);
+    });
+    el.appendChild(dotsEl);
+    grid.appendChild(el);
+  }
+
+  // Legend
+  const legendEl = document.getElementById('vac-legend'); if(!legendEl) return;
+  const activeEmpIds = [...new Set([...approved,...pending].map(r=>r.empId))];
+  legendEl.innerHTML = activeEmpIds.map(id=>{
+    const emp = employees.find(e=>e.id===id);
+    if(!emp) return '';
+    return `<div class="vac-legend-item"><div class="vac-legend-dot" style="background:${getVacEmpColor(id)}"></div>${emp.name.split(' ')[0]}</div>`;
+  }).join('');
+}
+
+function renderVacMonthList(){
+  const el = document.getElementById('vac-month-list'); if(!el) return;
+  const monthStart = `${_vacYear}-${String(_vacMonth+1).padStart(2,'0')}-01`;
+  const monthEnd = `${_vacYear}-${String(_vacMonth+1).padStart(2,'0')}-${new Date(_vacYear,_vacMonth+1,0).getDate()}`;
+  const inMonth = vacRequests.filter(r=>r.status==='approved'&&r.startDate<=monthEnd&&r.endDate>=monthStart);
+  if(!inMonth.length){el.innerHTML='';return;}
+
+  el.innerHTML = '<div class="section-title" style="margin-top:4px">📋 Ferier denne måned</div>'+
+    inMonth.map(r=>{
+      const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
+      const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid ${getVacEmpColor(r.empId)};border-radius:8px;margin-bottom:6px">
+        <div style="flex:1"><span style="font-weight:600;font-size:0.88rem">${emp.name}</span> <span style="font-size:0.75rem;color:var(--text3)">(${emp.tur})</span></div>
+        <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono)">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)}</span>
+        <span style="font-size:0.7rem;background:var(--surface2);padding:2px 8px;border-radius:20px;color:var(--text3)">${days}d</span>
+      </div>`;
+    }).join('');
+}
+
+// ── Pending list ──
+function renderVacPendingList(){
+  const el = document.getElementById('vac-pending-list'); if(!el) return;
+  const pending = vacRequests.filter(r=>r.status==='pending');
+  if(!pending.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div style="font-size:0.9rem">Ingen anmodninger afventer</div></div>';
+    return;
+  }
+  el.innerHTML = pending.map(r=>renderVacReqCard(r,true)).join('');
+}
+
+// ── All requests list ──
+function renderVacAllList(){
+  const el = document.getElementById('vac-all-list'); if(!el) return;
+  let filtered = vacRequests;
+  if(_vacFilter!=='all') filtered=vacRequests.filter(r=>r.status===_vacFilter);
+  if(!filtered.length){
+    el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen anmodninger</div></div>';
+    return;
+  }
+  el.innerHTML = filtered.map(r=>renderVacReqCard(r,false)).join('');
+}
+
+function renderVacReqCard(r, showActions){
+  const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
+  const ini=emp.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+  const statusLabel = {pending:'Afventer',approved:'Godkendt',rejected:'Afslået'}[r.status]||r.status;
+
+  return `<div class="vac-req-card">
+    <div class="vac-req-header">
+      <div class="emp-avatar" style="width:36px;height:36px;background:${getVacEmpColor(r.empId)};font-size:0.7rem">${ini}</div>
+      <div class="vac-req-info">
+        <div class="vac-req-name">${emp.name} <span style="color:var(--text3);font-size:0.78rem">(${emp.tur})</span></div>
+        <div class="vac-req-dates">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)} · ${days} dag${days>1?'e':''}</div>
+      </div>
+      <div>
+        <span class="vac-status ${r.status}">${statusLabel}</span>
+        <div style="font-size:0.68rem;color:var(--text3);margin-top:3px">${VAC_TYPE_LABELS[r.type]||r.type}</div>
+      </div>
+    </div>
+    ${r.note?`<div style="padding:0 14px 10px;font-size:0.82rem;color:var(--text3);font-style:italic">"${r.note}"</div>`:''}
+    ${r.registeredBy?`<div style="padding:0 14px 8px;font-size:0.7rem;color:var(--text3)">Registreret af: ${r.registeredBy}</div>`:''}
+    ${showActions && r.status==='pending'?`<div class="vac-req-actions">
+      <button class="vac-reject" onclick="vacDecide('${r.id}','rejected')">❌ Afslå</button>
+      <button class="vac-approve" onclick="vacDecide('${r.id}','approved')">✅ Godkend</button>
+    </div>`:''}
+    ${!showActions && r.status!=='pending'?`<div style="padding:0 14px 10px;display:flex;gap:6px">
+      <button class="btn btn-danger btn-sm" onclick="deleteVacRequest('${r.id}')">🗑️ Slet</button>
+    </div>`:''}
+  </div>`;
+}
+
+// ── Approve/Reject ──
+window.vacDecide = async function(id, status){
+  const r = vacRequests.find(x=>x.id===id); if(!r) return;
+  const emp = employees.find(e=>e.id===r.empId)||{name:'?'};
+  const label = status==='approved'?'godkendt':'afslået';
+  try{
+    setSyncing();
+    await _update('vacRequests', id, {status, decidedBy:currentUser, decidedAt:new Date().toISOString()});
+    // Audit
+    await _add('auditLogs',{action:'edit',logId:'vac_'+id,before:{status:'pending'},after:{status},by:currentUser,timestamp:new Date().toISOString()});
+    setSynced();
+    toast(`${status==='approved'?'✅':'❌'} ${emp.name}: Ferie ${label}`);
+    vacNotify(`${status==='approved'?'✅':'❌'} Ferie ${label}`, `${emp.name}'s ${VAC_TYPE_LABELS[r.type]||'ferie'} er ${label}`);
+    // Schedule reminders for approved
+    if(status==='approved') scheduleVacReminders(r, emp.name);
+  }catch(e){toast('❌ '+e.message)}
+};
+
+// ── Save new request ──
+window.saveVacRequest = async function(){
+  const empId = document.getElementById('vac-req-emp').value;
+  const type = document.getElementById('vac-req-type').value;
+  const start = document.getElementById('vac-req-start').value;
+  const end = document.getElementById('vac-req-end').value;
+  const note = document.getElementById('vac-req-note').value;
+
+  if(!empId){toast('⚠️ Vælg medarbejder');return;}
+  if(!start||!end){toast('⚠️ Vælg datoer');return;}
+  if(start>end){toast('⚠️ Fra-dato skal være før til-dato');return;}
+  if(!currentUser){toast('⚠️ Vælg hvem du er');return;}
+
+  const btn=document.getElementById('vac-save-btn');
+  btn.disabled=true; btn.textContent='Gemmer...';
+  try{
+    setSyncing();
+    await _add('vacRequests',{empId,type,startDate:start,endDate:end,note,status:'pending',registeredBy:currentUser,createdAt:new Date().toISOString()});
+    await _add('auditLogs',{action:'create',logId:'vac_new',snapshot:{empId,type,start,end},by:currentUser,timestamp:new Date().toISOString()});
+    setSynced();
+    closeModal('vac-req-modal');
+    toast('✅ Anmodning sendt!');
+    const emp=employees.find(e=>e.id===empId);
+    vacNotify('📋 Ny ferieanmodning',`${emp?.name||'?'} har anmodet om ${VAC_TYPE_LABELS[type]||type}`);
+  }catch(e){toast('❌ '+e.message)}
+  btn.disabled=false; btn.textContent='Send anmodning';
+};
+
+window.deleteVacRequest = async function(id){
+  if(!confirm('Slet denne ferie-anmodning?')) return;
+  try{setSyncing();await _delete('vacRequests',id);setSynced();toast('🗑️ Slettet');}
+  catch(e){toast('❌ '+e.message)}
+};
+
+// ── Pending dot ──
+function updateVacPendingDot(){
+  const count = vacRequests.filter(r=>r.status==='pending').length;
+  const dot = document.getElementById('vac-pending-dot');
+  if(dot) dot.innerHTML = count>0?`<span class="vac-pending-dot"></span>`:'';
+}
+
+// ── Browser notifications ──
+function vacRequestNotifPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+
+function vacNotify(title, body){
+  if('Notification' in window && Notification.permission==='granted'){
+    try{ new Notification(title, {body, icon:'🏖️'}); }catch(e){}
+  }
+}
+
+function scheduleVacReminders(r, empName){
+  const startMs = new Date(r.startDate).getTime();
+  const endMs = new Date(r.endDate).getTime()+864e5;
+  const now = Date.now();
+  const day = 864e5;
+
+  // Day before start
+  if(startMs-day>now) setTimeout(()=>vacNotify('🌴 Ferie starter i morgen',`${empName}'s ferie starter i morgen`), startMs-day-now);
+  // On start
+  if(startMs>now) setTimeout(()=>vacNotify('✈️ Ferie starter i dag',`${empName}'s ferie er startet`), startMs-now);
+  // On end
+  if(endMs>now) setTimeout(()=>vacNotify('👋 Ferie slutter i dag',`${empName} er tilbage i morgen`), endMs-now);
+}
+
+// ── Init vacation ──
+function initVacation(){
+  vacRequestNotifPermission();
+  startVacListener();
+  // Populate emp select in modal
+  const sel=document.getElementById('vac-req-emp');
+  if(sel){
+    const sorted=[...employees].sort((a,b)=>{const na=parseInt(a.tur.replace(/\D/g,''))||0,nb=parseInt(b.tur.replace(/\D/g,''))||0;return na-nb;});
+    sel.innerHTML=sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+  }
+  const byEl=document.getElementById('vac-req-by');
+  if(byEl) byEl.textContent=currentUser||'—';
+  const sd=document.getElementById('vac-req-start');
+  const ed=document.getElementById('vac-req-end');
+  if(sd) sd.value=todayStr();
+  if(ed) ed.value=todayStr();
+  // Schedule reminders for existing approved vacations
+  vacRequests.filter(r=>r.status==='approved').forEach(r=>{
+    const emp=employees.find(e=>e.id===r.empId);
+    if(emp) scheduleVacReminders(r, emp.name);
+  });
+}
 
 // ═══════════════════════════════════════════════════
 //  BRÆNDSTOF RAPPORT (Masri + PIN)
