@@ -549,10 +549,15 @@
       <!-- SAVED REPORTS / STATISTICS -->
       <div class="card" style="margin-top:16px">
         <div class="section-title">📊 Statistik & Historik</div>
-        <div class="filter-bar" style="margin-bottom:12px">
+        <div class="filter-bar" style="margin-bottom:8px">
           <button class="filter-chip active" onclick="setFuelStatView('company',this)">🏢 Firma total</button>
           <button class="filter-chip" onclick="setFuelStatView('employee',this)">👤 Pr. medarbejder</button>
           <button class="filter-chip" onclick="setFuelStatView('reports',this)">📋 Rapporter</button>
+        </div>
+        <div class="filter-bar" style="margin-bottom:12px">
+          <button class="filter-chip active" onclick="setFuelTypeFilter('all',this)">Alle</button>
+          <button class="filter-chip" onclick="setFuelTypeFilter('diesel',this)">⛽ Diesel</button>
+          <button class="filter-chip" onclick="setFuelTypeFilter('el',this)">🔋 El / Lade</button>
         </div>
         <div id="fuel-stats-content"></div>
       </div>
@@ -2651,6 +2656,7 @@ let _fuelParsedData = [];
 let _fuelCardMatches = {}; // kortNr -> empId
 let _fuelReports = [];
 let _fuelStatView = 'company';
+let _fuelTypeFilter = 'all';
 
 // Show/hide fuel tab based on user
 function updateFuelTabVisibility(){
@@ -2983,9 +2989,11 @@ window.matchFuelCard = function(kortNr, empId){
 window.saveFuelReport = async function(){
   if(!_fuelParsedData.length){ toast('⚠️ Ingen data at gemme'); return; }
 
+  const fuelType = (_fuelDataMode === 'charging') ? 'el' : 'diesel';
   const reportData = {
     date: todayStr(),
     dataMode: _fuelDataMode || 'shell',
+    fuelType: fuelType,
     cards: _fuelParsedData.map(c => ({
       kortNr: c.kortNr,
       netto: c.netto||0,
@@ -3010,7 +3018,7 @@ window.saveFuelReport = async function(){
     setSyncing();
     await _add('fuelReports', reportData);
     setSynced();
-    toast('✅ Brændstofrapport gemt!');
+    toast('✅ Rapport gemt som ' + (fuelType==='el'?'🔋 El/Lade':'⛽ Diesel') + '!');
     loadFuelReports();
   } catch(e){ toast('❌ '+e.message); setSynced(); }
 };
@@ -3026,7 +3034,16 @@ function loadFuelReports(){
 // ── Statistics views ──
 window.setFuelStatView = function(view, btn){
   _fuelStatView = view;
-  document.querySelectorAll('#view-fuel .filter-chip').forEach(b=>b.classList.remove('active'));
+  const bar = btn?.parentElement;
+  if(bar) bar.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderFuelStats();
+};
+
+window.setFuelTypeFilter = function(f, btn){
+  _fuelTypeFilter = f;
+  const bar = btn?.parentElement;
+  if(bar) bar.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   renderFuelStats();
 };
@@ -3045,22 +3062,29 @@ function renderFuelStats(){
 }
 
 function renderCompanyStats(el){
-  const totalNetto = _fuelReports.reduce((s,r)=>s+(r.totalNetto||0),0);
-  const totalRabat = _fuelReports.reduce((s,r)=>s+(r.totalRabat||0),0);
-  const totalReports = _fuelReports.length;
+  const reports = _fuelTypeFilter === 'all' ? _fuelReports : _fuelReports.filter(r => (r.fuelType||'diesel') === _fuelTypeFilter);
+  const totalNetto = reports.reduce((s,r)=>s+(r.totalNetto||0),0);
+  const totalRabat = reports.reduce((s,r)=>s+(r.totalRabat||0),0);
+  const totalKwh = reports.reduce((s,r)=>s+(r.totalKwh||0),0);
+  const totalReports = reports.length;
+  const isEl = _fuelTypeFilter === 'el';
 
-  // Group by month
   const monthly = {};
-  _fuelReports.forEach(r => {
-    const m = (r.date||r.createdAt||'').slice(0,7); // YYYY-MM
-    if(!monthly[m]) monthly[m] = {netto:0, rabat:0, count:0};
+  reports.forEach(r => {
+    const m = (r.date||r.createdAt||'').slice(0,7);
+    if(!monthly[m]) monthly[m] = {netto:0, rabat:0, kwh:0, count:0};
     monthly[m].netto += r.totalNetto||0;
     monthly[m].rabat += r.totalRabat||0;
+    monthly[m].kwh += r.totalKwh||0;
     monthly[m].count++;
   });
 
   const months = Object.entries(monthly).sort((a,b)=>b[0].localeCompare(a[0]));
   const maxNetto = Math.max(...months.map(m=>m[1].netto), 1);
+
+  const thirdStat = isEl
+    ? `<div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--purple)">${fmtDK(totalKwh)}</div><div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL kWh</div>`
+    : `<div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--green)">${fmtDK(totalRabat)}</div><div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL RABAT (DKK)</div>`;
 
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
@@ -3069,39 +3093,41 @@ function renderCompanyStats(el){
         <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL NETTO (DKK)</div>
       </div>
       <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--green)">${fmtDK(totalRabat)}</div>
-        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL RABAT (DKK)</div>
+        ${thirdStat}
       </div>
       <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
         <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--yellow)">${totalReports}</div>
         <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">RAPPORTER</div>
       </div>
     </div>
-    <div style="font-size:0.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Månedsoversigt</div>
-    ${months.map(([m, d])=>{
+    <div style="font-size:0.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Månedsoversigt ${_fuelTypeFilter!=='all'?'('+(_fuelTypeFilter==='el'?'🔋 El':'⛽ Diesel')+')':''}</div>
+    ${months.length ? months.map(([m, d])=>{
       const pct = Math.round(d.netto/maxNetto*100);
       const label = new Date(m+'-01').toLocaleDateString('da-DK',{month:'long',year:'numeric'});
       return `<div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px">
           <span style="color:var(--text2)">${label}</span>
-          <span style="font-family:var(--mono);color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
+          <span style="font-family:var(--mono);color:var(--accent2)">${fmtDK(d.netto)} kr.${isEl?' · '+fmtDK(d.kwh)+' kWh':''}</span>
         </div>
         <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px"></div>
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${isEl?'var(--cyan),var(--purple)':'var(--accent),var(--accent2)'});border-radius:3px"></div>
         </div>
       </div>`;
-    }).join('')}`;
+    }).join('') : '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen rapporter for denne type.</div>'}`;
 }
 
 function renderEmployeeStats(el){
-  // Aggregate all card entries across all reports by employee
+  const reports = _fuelTypeFilter === 'all' ? _fuelReports : _fuelReports.filter(r => (r.fuelType||'diesel') === _fuelTypeFilter);
+  const isEl = _fuelTypeFilter === 'el';
+
   const empTotals = {};
-  _fuelReports.forEach(r => {
+  reports.forEach(r => {
     (r.cards||[]).forEach(c => {
       if(!c.empId) return;
-      if(!empTotals[c.empId]) empTotals[c.empId] = {netto:0, rabat:0, count:0};
-      empTotals[c.empId].netto += c.netto||0;
+      if(!empTotals[c.empId]) empTotals[c.empId] = {netto:0, rabat:0, kwh:0, count:0};
+      empTotals[c.empId].netto += Math.abs(c.netto||0);
       empTotals[c.empId].rabat += c.rabat||0;
+      empTotals[c.empId].kwh += c.kwh||0;
       empTotals[c.empId].count++;
     });
   });
@@ -3110,7 +3136,7 @@ function renderEmployeeStats(el){
   const maxNetto = sorted.length ? sorted[0][1].netto : 1;
 
   if(!sorted.length){
-    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen medarbejdere tildelt kort endnu. Upload en rapport og tildel kort til medarbejdere.</div>';
+    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen medarbejdere tildelt kort endnu for denne type.</div>';
     return;
   }
 
@@ -3126,22 +3152,30 @@ function renderEmployeeStats(el){
         <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
       </div>
       <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:3px">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px"></div>
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${isEl?'var(--cyan),var(--purple)':'var(--yellow),var(--orange)'});border-radius:3px"></div>
       </div>
-      <div style="font-size:0.7rem;color:var(--text3)">Rabat: ${fmtDK(d.rabat)} kr. · ${d.count} transaktioner</div>
+      <div style="font-size:0.7rem;color:var(--text3)">${isEl?fmtDK(d.kwh)+' kWh':'Rabat: '+fmtDK(d.rabat)+' kr.'} · ${d.count} transaktioner</div>
     </div>`;
   }).join('');
 }
 
 function renderReportsList(el){
-  el.innerHTML = _fuelReports.map(r => {
+  const reports = _fuelTypeFilter === 'all' ? _fuelReports : _fuelReports.filter(r => (r.fuelType||'diesel') === _fuelTypeFilter);
+
+  if(!reports.length){
+    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen rapporter for denne type.</div>';
+    return;
+  }
+
+  el.innerHTML = reports.map(r => {
     const matched = (r.cards||[]).filter(c=>c.empId).length;
     const total = (r.cards||[]).length;
+    const isEl = (r.fuelType||'diesel') === 'el';
     return `<div class="log-item" style="margin-bottom:8px">
       <div class="log-header">
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="badge badge-yellow">⛽ ${total} kort</span>
-          <span style="font-size:0.82rem;color:var(--text2)">${fmtDK(r.totalNetto||0)} kr. netto</span>
+          <span class="badge badge-${isEl?'cyan':'yellow'}">${isEl?'🔋':'⛽'} ${total} kort</span>
+          <span style="font-size:0.82rem;color:var(--text2)">${fmtDK(r.totalNetto||0)} kr. netto${isEl&&r.totalKwh?' · '+fmtDK(r.totalKwh)+' kWh':''}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:0.75rem;color:var(--text3)">${matched}/${total} tildelt</span>
@@ -3149,7 +3183,7 @@ function renderReportsList(el){
           <button class="btn btn-danger btn-sm btn-icon" onclick="deleteFuelReport('${r.id}')">🗑️</button>
         </div>
       </div>
-      <div class="log-details" style="margin-top:6px">Rabat: ${fmtDK(r.totalRabat||0)} kr. · Uploadet af ${r.uploadedBy||'?'}</div>
+      <div class="log-details" style="margin-top:6px">${isEl?'🔋 El/Lade':'⛽ Diesel'} · ${isEl?fmtDK(r.totalKwh||0)+' kWh':'Rabat: '+fmtDK(r.totalRabat||0)+' kr.'} · Uploadet af ${r.uploadedBy||'?'}</div>
     </div>`;
   }).join('');
 }
