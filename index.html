@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.0</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.1</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.0</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.1</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -1417,7 +1417,11 @@ window.saveEditLog = async function(){
 function renderEmployees(){
   const q=(document.getElementById('emp-search')?.value||'').toLowerCase();
   const list=document.getElementById('emp-list'); if(!list) return;
-  const filtered=employees.filter(e=>e.name.toLowerCase().includes(q)||e.tur.toLowerCase().includes(q));
+  const filtered=employees.filter(e=>e.name.toLowerCase().includes(q)||e.tur.toLowerCase().includes(q))
+    .sort((a,b)=>{
+      const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
+      return na-nb || a.name.localeCompare(b.name);
+    });
   if(!filtered.length){
     list.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div style="font-size:0.9rem">${q?'Ingen resultater':'Ingen medarbejdere endnu'}</div></div>`;
     return;
@@ -3771,4 +3775,4 @@ if('serviceWorker'in navigator){ navigator.serviceWorker.register('sw.js').catch
   </div>
 </div>
 </body>
-  </html>
+</html>
