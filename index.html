@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.9</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.0</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.9</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.0</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -381,7 +381,10 @@
     <div class="view-sub">Vælg medarbejder og kategori</div>
     <div class="card">
       <div class="form-group"><label>Dato</label><input type="date" id="log-date" /></div>
-      <div class="form-group"><label>Medarbejder</label><div class="emp-select-pills" id="emp-pills-log"></div></div>
+      <div class="form-group"><label>Medarbejder</label>
+        <input type="text" id="emp-pill-search" placeholder="🔍 Søg tur nr. eller navn..." oninput="renderEmpPills()" style="margin-bottom:8px;padding:8px 12px;font-size:0.85rem" />
+        <div class="emp-select-pills" id="emp-pills-log"></div>
+      </div>
       <div class="form-group"><label>Kategori</label><div class="cat-grid" id="cat-grid"></div></div>
       <div id="log-extra-fields"></div>
       <div class="form-group"><label>Kommentar (valgfri)</label><textarea id="log-comment" placeholder="Tilføj kommentar..."></textarea></div>
@@ -399,6 +402,7 @@
       <div><div class="view-title">Medarbejdere</div><div style="font-size:0.85rem;color:var(--text2)">Administrer alle chauffører</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="openImportModal()">📥 Importer Excel</button>
+        <button class="btn btn-ghost btn-sm" id="merge-emp-btn" style="display:none" onclick="openMergeModal()">🔗 Flet</button>
         <button class="btn btn-primary btn-sm" onclick="openEmpModal()">+ Ny</button>
       </div>
     </div>
@@ -829,6 +833,23 @@
   </div>
 </div>
 
+<!-- MERGE EMPLOYEES MODAL (kun Masri) -->
+<div class="modal-overlay" id="merge-emp-modal">
+  <div class="modal">
+    <div class="modal-title"><span>🔗 Flet medarbejdere</span><button class="modal-close" onclick="closeModal('merge-emp-modal')">✕</button></div>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">Vælg den medarbejder der skal <strong>beholdes</strong> (primær), og de medarbejdere der skal <strong>slettes</strong> (dubletter). Alle noteringer, kort og ferier flyttes til den primære.</p>
+    <div class="form-group"><label>Primær medarbejder (beholdes)</label><select id="merge-primary"></select></div>
+    <div class="form-group"><label>Flet disse ind i primær (slettes)</label>
+      <div id="merge-secondary-list" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div id="merge-preview" style="font-size:0.82rem;color:var(--text2);margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeModal('merge-emp-modal')">Annuller</button>
+      <button class="btn btn-danger" style="flex:1" id="merge-confirm-btn" onclick="executeMerge()">🔗 Flet nu</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT LOG MODAL -->
 <div class="modal-overlay" id="edit-log-modal">
   <div class="modal">
@@ -933,6 +954,8 @@ function applyUser(name){
   const el2 = document.getElementById('edit-ansvarlig-name');
   if(el2) el2.textContent = name || '—';
   updateFuelTabVisibility();
+  const mergeBtn = document.getElementById('merge-emp-btn');
+  if(mergeBtn) mergeBtn.style.display = (name==='Masri') ? '' : 'none';
 }
 window.switchUser = function(){
   sessionStorage.removeItem('pn_session_user');
@@ -1155,14 +1178,17 @@ function renderExtraFields(){
 // ═══════════════════════════════════════════════════
 function renderEmpPills(){
   const c=document.getElementById('emp-pills-log'); if(!c) return;
+  const q=(document.getElementById('emp-pill-search')?.value||'').toLowerCase();
   const sorted = [...employees].sort((a,b) => {
     const na = parseInt(a.tur.replace(/\D/g,'')) || 0;
     const nb = parseInt(b.tur.replace(/\D/g,'')) || 0;
     return na - nb || a.name.localeCompare(b.name);
   });
-  c.innerHTML = sorted.length
-    ? sorted.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
-    : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
+  const filtered = q ? sorted.filter(e => e.tur.toLowerCase().includes(q) || e.name.toLowerCase().includes(q)) : sorted;
+  c.innerHTML = filtered.length
+    ? filtered.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+    : q ? '<span style="color:var(--text3);font-size:0.85rem">Ingen match</span>'
+        : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
 }
 window.selectEmp = function(id){ selectedEmpId=id; renderEmpPills(); };
 
@@ -2432,6 +2458,142 @@ function toast(msg){
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 
+
+// ═══════════════════════════════════════════════════
+//  FLET MEDARBEJDERE (kun Masri)
+// ═══════════════════════════════════════════════════
+let _mergeSecondaryIds = new Set();
+
+window.openMergeModal = function(){
+  const sorted = [...employees].sort((a,b)=>{
+    const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
+    return na-nb || a.name.localeCompare(b.name);
+  });
+
+  document.getElementById('merge-primary').innerHTML =
+    '<option value="">Vælg primær medarbejder...</option>' +
+    sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+
+  _mergeSecondaryIds = new Set();
+  renderMergeSecondary();
+  document.getElementById('merge-preview').innerHTML = '';
+  document.getElementById('merge-primary').onchange = () => renderMergeSecondary();
+  openModal('merge-emp-modal');
+};
+
+function renderMergeSecondary(){
+  const primaryId = document.getElementById('merge-primary').value;
+  const el = document.getElementById('merge-secondary-list'); if(!el) return;
+  const sorted = [...employees].sort((a,b)=>{
+    const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
+    return na-nb || a.name.localeCompare(b.name);
+  }).filter(e=>e.id!==primaryId);
+
+  el.innerHTML = sorted.map(e=>{
+    const checked = _mergeSecondaryIds.has(e.id);
+    const logCount = logs.filter(l=>l.empId===e.id).length;
+    const cardCount = cards.filter(c=>c.empId===e.id).length;
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.85rem">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleMergeSecondary('${e.id}',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)" />
+      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--accent2);min-width:40px">${e.tur}</span>
+      <span style="flex:1">${e.name}</span>
+      <span style="font-size:0.7rem;color:var(--text3)">${logCount} not. · ${cardCount} kort</span>
+    </label>`;
+  }).join('');
+
+  updateMergePreview();
+}
+
+window.toggleMergeSecondary = function(id, checked){
+  if(checked) _mergeSecondaryIds.add(id);
+  else _mergeSecondaryIds.delete(id);
+  updateMergePreview();
+};
+
+function updateMergePreview(){
+  const el = document.getElementById('merge-preview');
+  const primaryId = document.getElementById('merge-primary').value;
+  if(!primaryId || !_mergeSecondaryIds.size){ el.innerHTML=''; return; }
+
+  const primary = employees.find(e=>e.id===primaryId);
+  let totalLogs=0, totalCards=0, totalVac=0;
+  _mergeSecondaryIds.forEach(id=>{
+    totalLogs += logs.filter(l=>l.empId===id).length;
+    totalCards += cards.filter(c=>c.empId===id).length;
+    totalVac += (vacRequests||[]).filter(r=>r.empId===id).length;
+  });
+
+  el.innerHTML = `<div style="padding:10px 14px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:8px;margin-top:10px">
+    <strong style="color:var(--yellow)">⚠️ Forhåndsvisning:</strong><br>
+    <span style="font-size:0.8rem">${_mergeSecondaryIds.size} medarbejder${_mergeSecondaryIds.size>1?'e':''} flettes ind i <strong>${primary?.name||'?'} (${primary?.tur})</strong><br>
+    ${totalLogs} noteringer + ${totalCards} kort + ${totalVac} ferier flyttes<br>
+    De valgte medarbejdere slettes permanent.</span>
+  </div>`;
+}
+
+window.executeMerge = async function(){
+  const primaryId = document.getElementById('merge-primary').value;
+  if(!primaryId){ toast('⚠️ Vælg primær medarbejder'); return; }
+  if(!_mergeSecondaryIds.size){ toast('⚠️ Vælg mindst én medarbejder at flette'); return; }
+
+  const primary = employees.find(e=>e.id===primaryId);
+  const count = _mergeSecondaryIds.size;
+  if(!confirm(`Flet ${count} medarbejder${count>1?'e':''} ind i ${primary?.name} (${primary?.tur})?\n\nAlle noteringer, kort og ferier flyttes.\nDe valgte medarbejdere slettes permanent.\n\nDenne handling kan IKKE fortrydes.`)) return;
+
+  const btn = document.getElementById('merge-confirm-btn');
+  btn.disabled=true; btn.textContent='Fletter...';
+
+  try{
+    setSyncing();
+
+    for(const secId of _mergeSecondaryIds){
+      const secEmp = employees.find(e=>e.id===secId)||{name:'?',tur:'-'};
+
+      // Move all logs
+      const empLogs = logs.filter(l=>l.empId===secId);
+      for(let i=0;i<empLogs.length;i+=400){
+        const b=_newBatch();
+        empLogs.slice(i,i+400).forEach(l=>_batchUpdate(b,'logs',l.id,{empId:primaryId}));
+        await b.commit();
+      }
+
+      // Move all cards
+      const empCards = cards.filter(c=>c.empId===secId);
+      if(empCards.length){
+        const b=_newBatch();
+        empCards.forEach(c=>_batchUpdate(b,'cards',c.id,{empId:primaryId}));
+        await b.commit();
+      }
+
+      // Move all vacation requests
+      const empVacs = (vacRequests||[]).filter(r=>r.empId===secId);
+      if(empVacs.length){
+        const b=_newBatch();
+        empVacs.forEach(r=>_batchUpdate(b,'vacRequests',r.id,{empId:primaryId}));
+        await b.commit();
+      }
+
+      // Delete the secondary employee
+      await _delete('employees', secId);
+
+      // Audit log
+      await _add('auditLogs',{
+        action:'edit',
+        logId:'merge_'+secId,
+        snapshot:{action:'merge', fromEmp:secEmp.name, fromTur:secEmp.tur, toEmp:primary?.name, toTur:primary?.tur,
+          movedLogs:empLogs.length, movedCards:empCards.length, movedVacs:empVacs.length},
+        by:currentUser,
+        timestamp:new Date().toISOString()
+      });
+    }
+
+    setSynced();
+    closeModal('merge-emp-modal');
+    toast(`✅ ${count} medarbejder${count>1?'e':''} flettet ind i ${primary?.name}`);
+  }catch(e){ toast('❌ '+e.message); setSynced(); }
+
+  btn.disabled=false; btn.textContent='🔗 Flet nu';
+};
 
 // ═══════════════════════════════════════════════════
 //  FERIER & FRIDAGE
