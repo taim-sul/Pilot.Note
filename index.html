@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.7</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.9</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.7</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.9</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -1125,7 +1125,12 @@ function renderCatGrid(){
       <span class="cat-icon">${c.icon}</span>${c.label}
     </button>`).join('');
 }
-window.selectCategory = function(id){ selectedCategory=id; renderCatGrid(); renderExtraFields(); };
+window.selectCategory = function(id){
+  selectedCategory=id;
+  renderCatGrid(); renderExtraFields();
+  const btn=document.getElementById('save-log-btn');
+  if(btn) btn.textContent = id==='vacation' ? '📋 Opret ferie-anmodning' : '💾 Gem notering';
+};
 
 function renderExtraFields(){
   const cat=catMap()[selectedCategory];
@@ -1176,6 +1181,51 @@ window.saveLog = async function() {
     else extra[f.id]=document.getElementById('field_'+f.id)?.value||'';
   });
   if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
+
+  // ── FERIE: Opret som anmodning i stedet for notering ──
+  if(selectedCategory === 'vacation'){
+    const vacFrom = extra.vac_from;
+    const vacTo = extra.vac_to;
+    if(!vacFrom || !vacTo){ toast('⚠️ Vælg fra- og til-dato'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
+    if(vacFrom > vacTo){ toast('⚠️ Fra-dato skal være før til-dato'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
+
+    const vacTypeMap = {'Ferie':'ferie','Feriefridag':'feriefridag','Afspadsering':'afspadsering','Barns sygedag':'barns_sygedag','Orlov':'orlov'};
+    const vacType = vacTypeMap[extra.vac_type] || 'ferie';
+    const emp = employees.find(e=>e.id===selectedEmpId)||{name:'?',tur:'-'};
+    const comment = document.getElementById('log-comment').value;
+
+    try {
+      setSyncing();
+      const ref = await _add('vacRequests', {
+        empId: selectedEmpId,
+        type: vacType,
+        startDate: vacFrom,
+        endDate: vacTo,
+        note: comment,
+        status: 'pending',
+        registeredBy: currentUser,
+        createdAt: new Date().toISOString()
+      });
+      await _add('auditLogs',{
+        action:'create', logId:'vac_'+ref.id,
+        isVacation:true,
+        snapshot:{empId:selectedEmpId, empName:emp.name, empTur:emp.tur, type:vacType, startDate:vacFrom, endDate:vacTo, category:'🏖️ '+(VAC_TYPE_LABELS[vacType]||vacType)},
+        by:currentUser,
+        timestamp:new Date().toISOString()
+      });
+      setSynced();
+      selectedCategory=null; selectedEmpId=null;
+      document.getElementById('log-comment').value='';
+      document.getElementById('log-extra-fields').innerHTML='';
+      renderCatGrid(); renderEmpPills();
+      toast('✅ Ferie-anmodning oprettet! Afventer godkendelse.');
+      vacNotify('📋 Ny ferieanmodning',`${emp.name} har anmodet om ${VAC_TYPE_LABELS[vacType]||vacType}`);
+    } catch(e){ toast('❌ '+e.message); }
+    btn.disabled=false; btn.textContent='💾 Gem notering';
+    return;
+  }
+
+  // ── Normal notering ──
   try {
     setSyncing();
     const logData = {
@@ -1187,7 +1237,6 @@ window.saveLog = async function() {
       createdAt: new Date().toISOString()
     };
     const ref = await _add('logs', logData);
-    // Write audit entry
     await _add('auditLogs',{
       action:'create', logId:ref.id,
       snapshot: logData,
@@ -1980,10 +2029,19 @@ function renderAuditLog(){
   list.innerHTML=filtered.map(a=>{
     const snap=a.action==='edit'?a.before:a.snapshot;
     const _snapLog = logs.find(l=>l.id===a.logId);
-    const emp=employees.find(e=>e.id===snap?.empId)||
-      {name: snap?._empNameSnapshot||_snapLog?._empNameSnapshot||snap?.empId||'Ukendt',
-       tur:  snap?._empTurSnapshot ||_snapLog?._empTurSnapshot ||'-'};
-    const cat=cm[snap?.category]||{icon:'❓',label:snap?.category||'?'};
+
+    // Handle vacation audit entries
+    const isVac = a.isVacation || (a.logId&&a.logId.startsWith('vac_'));
+    let emp, cat;
+    if(isVac){
+      emp = {name: a.snapshot?.empName||snap?.empName||'?', tur: a.snapshot?.empTur||snap?.empTur||'-'};
+      cat = {icon:'🏖️', label: a.snapshot?.category||snap?.category||'Ferie'};
+    } else {
+      emp=employees.find(e=>e.id===snap?.empId)||
+        {name: snap?._empNameSnapshot||_snapLog?._empNameSnapshot||snap?.empId||'Ukendt',
+         tur:  snap?._empTurSnapshot ||_snapLog?._empTurSnapshot ||'-'};
+      cat=cm[snap?.category]||{icon:'❓',label:snap?.category||'?'};
+    }
     const ts=a.timestamp?new Date(a.timestamp).toLocaleString('da-DK',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
     function diffRow(label,bVal,aVal){
@@ -2031,13 +2089,21 @@ function renderAuditLog(){
       if(filled.length) diffHtml=`<div class="audit-diff">${filled.join('')}</div>`;
     }
     if(a.action==='create'&&snap){
-      const extra=buildExtraText({extra:snap.extra||{}},cat);
-      diffHtml=`<div class="audit-diff">
-        <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Oprettet notering</div>
-        <div class="after">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
-        ${extra?`<div class="after" style="margin-top:3px">${extra}</div>`:''}
-        ${snap.comment?`<div class="after" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
-      </div>`;
+      if(isVac){
+        diffHtml=`<div class="audit-diff">
+          <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Ferie-anmodning oprettet</div>
+          <div class="after">🏖️ ${snap.category||VAC_TYPE_LABELS[snap.type]||snap.type||'Ferie'} — ${emp.name} (${emp.tur})</div>
+          <div class="after" style="margin-top:3px">📅 ${fmtDate(snap.startDate)} – ${fmtDate(snap.endDate)}</div>
+        </div>`;
+      } else {
+        const extra=buildExtraText({extra:snap.extra||{}},cat);
+        diffHtml=`<div class="audit-diff">
+          <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Oprettet notering</div>
+          <div class="after">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
+          ${extra?`<div class="after" style="margin-top:3px">${extra}</div>`:''}
+          ${snap.comment?`<div class="after" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
+        </div>`;
+      }
     }
     if(a.action==='delete'&&snap){
       const extra=buildExtraText({extra:snap.extra||{}},cat);
@@ -2370,7 +2436,7 @@ function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/
 // ═══════════════════════════════════════════════════
 //  FERIER & FRIDAGE
 // ═══════════════════════════════════════════════════
-const VAC_COLORS = ['#3B82F6','#10B981','#F59E0B','#EF4444','#A78BFA','#EC4899','#06B6D4','#F97316','#84CC16','#6366F1'];
+const VAC_COLORS = ['#3B82F6','#10B981','#F59E0B','#EF4444','#A78BFA','#EC4899','#06B6D4','#F97316','#84CC16','#6366F1','#14B8A6','#E11D48','#8B5CF6','#0891B2','#CA8A04','#DC2626','#7C3AED','#059669','#D946EF','#EA580C','#2563EB','#16A34A','#DB2777','#4F46E5','#0D9488','#B91C1C','#9333EA','#C026D3','#65A30D','#0284C7'];
 const VAC_TYPE_LABELS = {ferie:'🌴 Ferie',fridag:'🏖 Fridag',feriefridag:'📅 Feriefridag',afspadsering:'⏰ Afspadsering',barns_sygedag:'👶 Barns sygedag',orlov:'📋 Orlov'};
 
 let vacRequests = [];
@@ -2561,17 +2627,23 @@ function renderVacReqCard(r, showActions){
 // ── Approve/Reject ──
 window.vacDecide = async function(id, status){
   const r = vacRequests.find(x=>x.id===id); if(!r) return;
-  const emp = employees.find(e=>e.id===r.empId)||{name:'?'};
+  const emp = employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
   const label = status==='approved'?'godkendt':'afslået';
   try{
     setSyncing();
     await _update('vacRequests', id, {status, decidedBy:currentUser, decidedAt:new Date().toISOString()});
-    // Audit
-    await _add('auditLogs',{action:'edit',logId:'vac_'+id,before:{status:'pending'},after:{status},by:currentUser,timestamp:new Date().toISOString()});
+    await _add('auditLogs',{
+      action:'edit', logId:'vac_'+id,
+      isVacation:true,
+      before:{status:'pending'},
+      after:{status},
+      snapshot:{empId:r.empId, empName:emp.name, empTur:emp.tur, type:r.type, startDate:r.startDate, endDate:r.endDate, category:'🏖️ '+(VAC_TYPE_LABELS[r.type]||r.type)},
+      by:currentUser,
+      timestamp:new Date().toISOString()
+    });
     setSynced();
     toast(`${status==='approved'?'✅':'❌'} ${emp.name}: Ferie ${label}`);
     vacNotify(`${status==='approved'?'✅':'❌'} Ferie ${label}`, `${emp.name}'s ${VAC_TYPE_LABELS[r.type]||'ferie'} er ${label}`);
-    // Schedule reminders for approved
     if(status==='approved') scheduleVacReminders(r, emp.name);
   }catch(e){toast('❌ '+e.message)}
 };
@@ -2589,17 +2661,23 @@ window.saveVacRequest = async function(){
   if(start>end){toast('⚠️ Fra-dato skal være før til-dato');return;}
   if(!currentUser){toast('⚠️ Vælg hvem du er');return;}
 
+  const emp = employees.find(e=>e.id===empId)||{name:'?',tur:'-'};
   const btn=document.getElementById('vac-save-btn');
   btn.disabled=true; btn.textContent='Gemmer...';
   try{
     setSyncing();
-    await _add('vacRequests',{empId,type,startDate:start,endDate:end,note,status:'pending',registeredBy:currentUser,createdAt:new Date().toISOString()});
-    await _add('auditLogs',{action:'create',logId:'vac_new',snapshot:{empId,type,start,end},by:currentUser,timestamp:new Date().toISOString()});
+    const ref = await _add('vacRequests',{empId,type,startDate:start,endDate:end,note,status:'pending',registeredBy:currentUser,createdAt:new Date().toISOString()});
+    await _add('auditLogs',{
+      action:'create', logId:'vac_'+ref.id,
+      isVacation:true,
+      snapshot:{empId, empName:emp.name, empTur:emp.tur, type, startDate:start, endDate:end, category:'🏖️ '+(VAC_TYPE_LABELS[type]||type)},
+      by:currentUser,
+      timestamp:new Date().toISOString()
+    });
     setSynced();
     closeModal('vac-req-modal');
     toast('✅ Anmodning sendt!');
-    const emp=employees.find(e=>e.id===empId);
-    vacNotify('📋 Ny ferieanmodning',`${emp?.name||'?'} har anmodet om ${VAC_TYPE_LABELS[type]||type}`);
+    vacNotify('📋 Ny ferieanmodning',`${emp.name} har anmodet om ${VAC_TYPE_LABELS[type]||type}`);
   }catch(e){toast('❌ '+e.message)}
   btn.disabled=false; btn.textContent='Send anmodning';
 };
@@ -3531,4 +3609,4 @@ if('serviceWorker'in navigator){ navigator.serviceWorker.register('sw.js').catch
   </div>
 </div>
 </body>
-</html>
+  </html>
