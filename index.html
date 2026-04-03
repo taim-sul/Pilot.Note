@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.6</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v3.7</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.6</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v3.7</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -1551,10 +1551,7 @@ window.saveCard = async function(){
   try{
     setSyncing();
     const b=_newBatch();
-    if(type==='fuel'||type==='charge'){
-      cards.filter(c=>c.empId===empId&&c.type===type&&c.active)
-        .forEach(c=>_batchUpdate(b,'cards',c.id,{active:false,returnedDate:date}));
-    }
+    // Tillader flere aktive kort/brikker af samme type pr. medarbejder
     const ref=_newDocRef('cards');
     b.set(ref,{empId,type,number,date,note,active:true,createdAt:new Date().toISOString()});
     await b.commit();
