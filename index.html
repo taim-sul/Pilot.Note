@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.4</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.6</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.4</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.6</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -451,6 +451,21 @@
   <div class="view" id="view-settings">
     <div class="view-title">Indstillinger</div>
     <div class="view-sub">Tilpas kategorier og data</div>
+
+    <!-- ARBEJDSDAGE PR. MÅNED (kun Masri) -->
+    <div class="card" id="workdays-card" style="display:none">
+      <div class="section-title">📅 Arbejdsdage pr. måned</div>
+      <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px">Indtast antal arbejdsdage for hver måned. Faktiske dage beregnes: arbejdsdage − syge − ikke mødt − ferie/fridage.</p>
+      <div class="grid-2" style="margin-bottom:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>År</label>
+          <select id="wd-year" onchange="renderWorkDaysInputs()"></select>
+        </div>
+      </div>
+      <div id="wd-months-grid"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%" onclick="saveWorkDays()">💾 Gem arbejdsdage</button>
+    </div>
+
     <div class="card">
       <div class="section-title">🏷️ Egne kategorier</div>
       <div id="custom-cats-list"></div>
@@ -1067,7 +1082,8 @@ function initUI() {
     m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
   document.getElementById('import-file').addEventListener('change', previewImport);
   renderCatGrid(); renderOverview(); renderHistory(); renderCards();
-  startVacListener(); // Start listening for vacation requests (notifications)
+  startVacListener();
+  loadWorkDays();
 }
 
 // ═══════════════════════════════════════════════════
@@ -1130,7 +1146,7 @@ function showView(id,btn){
   if(id==='history')  renderHistory();
   if(id==='log')      { renderEmpPills(); renderCatGrid(); applyUser(currentUser); }
   if(id==='cards')    renderCards();
-  if(id==='settings') renderCustomCatsList();
+  if(id==='settings') { renderCustomCatsList(); initWorkDaysUI(); }
   if(id==='auditlog') renderAuditLog();
   if(id==='scanner') initScanner();
   if(id==='fuel' && !_fuelUnlocked) { /* PIN gate shows by default */ }
@@ -2308,12 +2324,37 @@ window.exportExcel = function(){
       XLSX.utils.sheet_add_aoa(ws, [
         [`${emp.name} — Tur ${emp.tur}`, '', `Noteringer: ${empLogs.length}`, '', `Periode: ${document.getElementById('exp-from').value} → ${document.getElementById('exp-to').value}`]
       ], {origin:'A1'});
-      // Shift data down by adding the header
-      const newWs = XLSX.utils.json_to_sheet(d, {origin:'A3'});
-      // Re-add header
-      XLSX.utils.sheet_add_aoa(newWs, [
-        [`${emp.name} — Tur ${emp.tur}`, '', `${empLogs.length} noteringer`]
-      ], {origin:'A1'});
+      // Shift data down by adding the header + work days summary
+      const from = document.getElementById('exp-from').value;
+      const to = document.getElementById('exp-to').value;
+
+      // Calculate work days for months in period
+      const wdMonths = [];
+      if(from && to){
+        const [fy,fm] = from.split('-').map(Number);
+        const [ty,tm] = to.split('-').map(Number);
+        let cy=fy, cm=fm;
+        while(cy<ty || (cy===ty && cm<=tm)){
+          const ym = `${cy}-${String(cm).padStart(2,'0')}`;
+          const wd = calcEmployeeWorkDays(emp.id, ym);
+          if(wd && wd.budgeted) wdMonths.push({month:MONTH_NAMES[cm-1]+' '+cy, ...wd});
+          cm++; if(cm>12){cm=1;cy++;}
+        }
+      }
+
+      const headerRows = [
+        [`${emp.name} — Tur ${emp.tur}`, '', `${empLogs.length} noteringer`, '', `Periode: ${from} → ${to}`],
+      ];
+      if(wdMonths.length){
+        headerRows.push([]);
+        headerRows.push(['Måned','Arbejdsdage','Syge','Ikke mødt','Ferie/fri','Faktiske dage']);
+        wdMonths.forEach(w => headerRows.push([w.month, w.budgeted, w.sickDays, w.noshowDays, w.vacDays, w.actual]));
+        headerRows.push([]);
+      }
+
+      const dataStartRow = headerRows.length + 1;
+      const newWs = XLSX.utils.json_to_sheet(d, {origin:'A'+dataStartRow});
+      XLSX.utils.sheet_add_aoa(newWs, headerRows, {origin:'A1'});
       newWs['!cols'] = [10,22,40,30,14,14,22].map(w=>({wch:w}));
 
       XLSX.utils.book_append_sheet(wb, newWs, sheetName);
@@ -2351,6 +2392,56 @@ window.exportExcel = function(){
       const ws = XLSX.utils.json_to_sheet(d);
       ws['!cols'] = [10,22,16,12,12,10,10,20,14].map(w=>({wch:w}));
       XLSX.utils.book_append_sheet(wb, ws, 'Ferier og Fridage');
+    }
+  }
+
+  // ── 5b. Arbejdsdage & Fremmøde ──
+  {
+    const from = document.getElementById('exp-from').value;
+    const to = document.getElementById('exp-to').value;
+    const empFilter = document.getElementById('exp-emp').value;
+
+    // Determine months in the export period
+    const months = [];
+    if(from && to){
+      const [fy,fm] = from.split('-').map(Number);
+      const [ty,tm] = to.split('-').map(Number);
+      let cy=fy, cm=fm;
+      while(cy<ty || (cy===ty && cm<=tm)){
+        months.push(`${cy}-${String(cm).padStart(2,'0')}`);
+        cm++; if(cm>12){cm=1;cy++;}
+      }
+    }
+
+    if(months.length){
+      const relevantEmps = empFilter
+        ? employees.filter(e=>e.id===empFilter)
+        : [...employees].sort((a,b)=>{const na=parseInt(a.tur.replace(/\D/g,''))||0,nb=parseInt(b.tur.replace(/\D/g,''))||0;return na-nb;});
+
+      const rows = [];
+      relevantEmps.forEach(emp => {
+        months.forEach(ym => {
+          const wd = calcEmployeeWorkDays(emp.id, ym);
+          const [y,m] = ym.split('-');
+          const monthLabel = MONTH_NAMES[parseInt(m)-1]+' '+y;
+          rows.push({
+            'Tur nr.': emp.tur,
+            'Navn': emp.name,
+            'Måned': monthLabel,
+            'Arbejdsdage (budget)': wd?.budgeted || 0,
+            'Sygedage': wd?.sickDays || 0,
+            'Ikke mødt op': wd?.noshowDays || 0,
+            'Ferie/fridage': wd?.vacDays || 0,
+            'Faktiske arbejdsdage': wd?.actual || 0
+          });
+        });
+      });
+
+      if(rows.length){
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [10,22,16,16,12,12,14,18].map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb, ws, 'Fremmøde');
+      }
     }
   }
 
@@ -2531,6 +2622,109 @@ function toast(msg){
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
 
+
+// ═══════════════════════════════════════════════════
+//  ARBEJDSDAGE PR. MÅNED (kun Masri)
+// ═══════════════════════════════════════════════════
+let _workDays = {}; // { "2026-01": 22, "2026-02": 20, ... }
+const MONTH_NAMES = ['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'];
+
+function loadWorkDays(){
+  _snap('workDays', [], snap => {
+    _workDays = {};
+    snap.docs.forEach(d => { _workDays[d.id] = d.data().days||0; });
+    if(document.getElementById('wd-months-grid')) renderWorkDaysInputs();
+  }, err => console.error('workDays:', err));
+}
+
+function initWorkDaysUI(){
+  const card = document.getElementById('workdays-card');
+  if(card) card.style.display = (currentUser==='Masri') ? 'block' : 'none';
+  const sel = document.getElementById('wd-year');
+  if(sel){
+    const y = new Date().getFullYear();
+    sel.innerHTML = [y-1,y,y+1].map(yr=>`<option value="${yr}" ${yr===y?'selected':''}>${yr}</option>`).join('');
+  }
+  renderWorkDaysInputs();
+}
+
+function renderWorkDaysInputs(){
+  const el = document.getElementById('wd-months-grid'); if(!el) return;
+  const year = document.getElementById('wd-year')?.value || new Date().getFullYear();
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">` +
+    MONTH_NAMES.map((m,i) => {
+      const key = `${year}-${String(i+1).padStart(2,'0')}`;
+      const val = _workDays[key] || '';
+      return `<div style="text-align:center">
+        <div style="font-size:0.7rem;color:var(--text3);margin-bottom:3px;font-weight:600">${m.slice(0,3)}</div>
+        <input type="number" inputmode="numeric" min="0" max="31" value="${val}" data-wd-key="${key}"
+          style="width:100%;text-align:center;padding:8px;font-family:var(--mono);font-size:0.9rem" placeholder="—" />
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+window.saveWorkDays = async function(){
+  const inputs = document.querySelectorAll('[data-wd-key]');
+  try{
+    setSyncing();
+    const b = _newBatch();
+    inputs.forEach(inp => {
+      const key = inp.dataset.wdKey;
+      const val = parseInt(inp.value) || 0;
+      if(val > 0){
+        _workDays[key] = val;
+        b.set(docRef('workDays',key), {days:val}, {merge:true});
+      }
+    });
+    await b.commit();
+    setSynced();
+    toast('✅ Arbejdsdage gemt!');
+  }catch(e){ toast('❌ '+e.message); setSynced(); }
+};
+
+// Calculate actual work days for an employee in a given month
+function calcEmployeeWorkDays(empId, yearMonth){
+  const budgeted = _workDays[yearMonth] || 0;
+  if(!budgeted) return null;
+
+  const [y,m] = yearMonth.split('-');
+  const monthStart = `${y}-${m}-01`;
+  const monthEnd = `${y}-${m}-${new Date(parseInt(y),parseInt(m),0).getDate()}`;
+
+  // Count sick days (only weekdays)
+  const sickDays = logs.filter(l => {
+    if(l.empId!==empId || l.category!=='sick' || l.date<monthStart || l.date>monthEnd) return false;
+    const dow = new Date(l.date).getDay();
+    return dow>=1 && dow<=5; // Mon-Fri
+  }).length;
+
+  // Count no-show days (only weekdays)
+  const noshowDays = logs.filter(l => {
+    if(l.empId!==empId || l.category!=='noshow' || l.date<monthStart || l.date>monthEnd) return false;
+    const dow = new Date(l.date).getDay();
+    return dow>=1 && dow<=5;
+  }).length;
+
+  // Count vacation/holiday days — only weekdays (Mon-Fri)
+  let vacDays = 0;
+  (vacRequests||[]).filter(r => r.empId===empId && r.status==='approved').forEach(r => {
+    const vStart = r.startDate > monthStart ? r.startDate : monthStart;
+    const vEnd = r.endDate < monthEnd ? r.endDate : monthEnd;
+    if(vStart <= vEnd){
+      // Loop through each day and count only Mon-Fri
+      const d = new Date(vStart);
+      const end = new Date(vEnd);
+      while(d <= end){
+        const dow = d.getDay();
+        if(dow>=1 && dow<=5) vacDays++;
+        d.setDate(d.getDate()+1);
+      }
+    }
+  });
+
+  const actual = Math.max(0, budgeted - sickDays - noshowDays - vacDays);
+  return { budgeted, sickDays, noshowDays, vacDays, actual };
+}
 
 // ═══════════════════════════════════════════════════
 //  FLET MEDARBEJDERE (kun Masri)
