@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.2</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.3</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.2</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.3</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -3345,90 +3345,137 @@ function renderFuelStats(){
 }
 
 function renderCompanyStats(el){
-  const totalNetto = _fuelReports.reduce((s,r)=>s+(r.totalNetto||0),0);
-  const totalRabat = _fuelReports.reduce((s,r)=>s+(r.totalRabat||0),0);
-  const totalReports = _fuelReports.length;
+  const dieselReports = _fuelReports.filter(r=>r.dataMode!=='charging');
+  const chargeReports = _fuelReports.filter(r=>r.dataMode==='charging');
 
-  // Group by month
-  const monthly = {};
-  _fuelReports.forEach(r => {
-    const m = (r.date||r.createdAt||'').slice(0,7); // YYYY-MM
-    if(!monthly[m]) monthly[m] = {netto:0, rabat:0, count:0};
-    monthly[m].netto += r.totalNetto||0;
-    monthly[m].rabat += r.totalRabat||0;
-    monthly[m].count++;
-  });
+  const dieselNetto = dieselReports.reduce((s,r)=>s+(r.totalNetto||0),0);
+  const dieselRabat = dieselReports.reduce((s,r)=>s+(r.totalRabat||0),0);
+  const chargeNetto = chargeReports.reduce((s,r)=>s+(r.totalNetto||0),0);
+  const chargeKwh = chargeReports.reduce((s,r)=>s+(r.totalKwh||0),0);
 
-  const months = Object.entries(monthly).sort((a,b)=>b[0].localeCompare(a[0]));
-  const maxNetto = Math.max(...months.map(m=>m[1].netto), 1);
+  // Monthly breakdown per type
+  function monthlyGroup(reports){
+    const m={};
+    reports.forEach(r=>{
+      const k=(r.date||r.createdAt||'').slice(0,7);
+      if(!m[k]) m[k]={netto:0,rabat:0,kwh:0,count:0};
+      m[k].netto+=r.totalNetto||0; m[k].rabat+=r.totalRabat||0; m[k].kwh+=r.totalKwh||0; m[k].count++;
+    });
+    return Object.entries(m).sort((a,b)=>b[0].localeCompare(a[0]));
+  }
+
+  const dieselMonths = monthlyGroup(dieselReports);
+  const chargeMonths = monthlyGroup(chargeReports);
+  const maxDiesel = Math.max(...dieselMonths.map(m=>m[1].netto),1);
+  const maxCharge = Math.max(...chargeMonths.map(m=>m[1].netto),1);
 
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
-      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--accent2)">${fmtDK(totalNetto)}</div>
-        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL NETTO (DKK)</div>
+    <!-- DIESEL -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:0.85rem;font-weight:700;color:var(--yellow);margin-bottom:10px">⛽ Diesel / Benzin</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--accent2)">${fmtDK(dieselNetto)}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">NETTO (DKK)</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--green)">${fmtDK(dieselRabat)}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">RABAT (DKK)</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--yellow)">${dieselReports.length}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">RAPPORTER</div>
+        </div>
       </div>
-      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--green)">${fmtDK(totalRabat)}</div>
-        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">TOTAL RABAT (DKK)</div>
-      </div>
-      <div style="background:var(--surface2);border-radius:10px;padding:14px;text-align:center">
-        <div style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--yellow)">${totalReports}</div>
-        <div style="font-size:0.7rem;color:var(--text3);margin-top:2px">RAPPORTER</div>
-      </div>
+      ${dieselMonths.length?dieselMonths.map(([m,d])=>{
+        const pct=Math.round(d.netto/maxDiesel*100);
+        const label=new Date(m+'-01').toLocaleDateString('da-DK',{month:'short',year:'numeric'});
+        return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:2px"><span style="color:var(--text3)">${label}</span><span style="font-family:var(--mono);color:var(--accent2)">${fmtDK(d.netto)}</span></div>
+        <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px"></div></div></div>`;
+      }).join(''):'<div style="font-size:0.8rem;color:var(--text3)">Ingen diesel-rapporter endnu</div>'}
     </div>
-    <div style="font-size:0.78rem;font-weight:700;color:var(--text2);margin-bottom:10px">Månedsoversigt</div>
-    ${months.map(([m, d])=>{
-      const pct = Math.round(d.netto/maxNetto*100);
-      const label = new Date(m+'-01').toLocaleDateString('da-DK',{month:'long',year:'numeric'});
-      return `<div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px">
-          <span style="color:var(--text2)">${label}</span>
-          <span style="font-family:var(--mono);color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+
+    <!-- EL / LADNING -->
+    <div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--purple);margin-bottom:10px">🔋 El / Ladning</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--accent2)">${fmtDK(chargeNetto)}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">NETTO (DKK)</div>
         </div>
-        <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px"></div>
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--purple)">${fmtDK(chargeKwh)}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">TOTAL kWh</div>
         </div>
-      </div>`;
-    }).join('')}`;
+        <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--cyan)">${chargeReports.length}</div>
+          <div style="font-size:0.65rem;color:var(--text3);margin-top:2px">RAPPORTER</div>
+        </div>
+      </div>
+      ${chargeMonths.length?chargeMonths.map(([m,d])=>{
+        const pct=Math.round(d.netto/maxCharge*100);
+        const label=new Date(m+'-01').toLocaleDateString('da-DK',{month:'short',year:'numeric'});
+        return `<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:2px"><span style="color:var(--text3)">${label}</span><span style="font-family:var(--mono);color:var(--purple)">${fmtDK(d.netto)} · ${fmtDK(d.kwh)} kWh</span></div>
+        <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--cyan));border-radius:3px"></div></div></div>`;
+      }).join(''):'<div style="font-size:0.8rem;color:var(--text3)">Ingen lade-rapporter endnu</div>'}
+    </div>`;
 }
 
 function renderEmployeeStats(el){
-  // Aggregate all card entries across all reports by employee
   const empTotals = {};
   _fuelReports.forEach(r => {
+    const isCharge = r.dataMode==='charging';
     (r.cards||[]).forEach(c => {
       if(!c.empId) return;
-      if(!empTotals[c.empId]) empTotals[c.empId] = {netto:0, rabat:0, count:0};
-      empTotals[c.empId].netto += c.netto||0;
-      empTotals[c.empId].rabat += c.rabat||0;
-      empTotals[c.empId].count++;
+      if(!empTotals[c.empId]) empTotals[c.empId] = {dieselNetto:0,dieselRabat:0,dieselCount:0,chargeNetto:0,chargeKwh:0,chargeCount:0};
+      if(isCharge){
+        empTotals[c.empId].chargeNetto += Math.abs(c.netto||0);
+        empTotals[c.empId].chargeKwh += c.kwh||0;
+        empTotals[c.empId].chargeCount++;
+      } else {
+        empTotals[c.empId].dieselNetto += c.netto||0;
+        empTotals[c.empId].dieselRabat += c.rabat||0;
+        empTotals[c.empId].dieselCount++;
+      }
     });
   });
 
-  const sorted = Object.entries(empTotals).sort((a,b)=>b[1].netto-a[1].netto);
-  const maxNetto = sorted.length ? sorted[0][1].netto : 1;
+  const sorted = Object.entries(empTotals).sort((a,b)=>(b[1].dieselNetto+b[1].chargeNetto)-(a[1].dieselNetto+a[1].chargeNetto));
 
   if(!sorted.length){
-    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen medarbejdere tildelt kort endnu. Upload en rapport og tildel kort til medarbejdere.</div>';
+    el.innerHTML = '<div style="font-size:0.85rem;color:var(--text3);padding:16px">Ingen medarbejdere tildelt kort endnu.</div>';
     return;
   }
 
+  const maxTotal = sorted.length ? (sorted[0][1].dieselNetto+sorted[0][1].chargeNetto) : 1;
+
   el.innerHTML = sorted.map(([empId, d])=>{
     const emp = employees.find(e=>e.id===empId) || {name:'Ukendt',tur:'-'};
-    const pct = Math.round(d.netto/maxNetto*100);
+    const total = d.dieselNetto + d.chargeNetto;
+    const pct = Math.round(total/maxTotal*100);
+    const hasDiesel = d.dieselCount>0;
+    const hasCharge = d.chargeCount>0;
+
     return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div>
           <span style="font-weight:600;font-size:0.88rem">${emp.name}</span>
           <span style="font-size:0.75rem;color:var(--text3);font-family:var(--mono);margin-left:6px">Tur ${emp.tur}</span>
         </div>
-        <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--accent2)">${fmtDK(d.netto)} kr.</span>
+        <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--accent2)">${fmtDK(total)} kr.</span>
       </div>
-      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:3px">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),var(--orange));border-radius:3px"></div>
+      <div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:5px">
+        <div style="height:100%;display:flex;border-radius:3px;overflow:hidden">
+          ${hasDiesel?`<div style="width:${total>0?Math.round(d.dieselNetto/total*pct):0}%;background:var(--yellow)"></div>`:''}
+          ${hasCharge?`<div style="width:${total>0?Math.round(d.chargeNetto/total*pct):0}%;background:var(--purple)"></div>`:''}
+        </div>
       </div>
-      <div style="font-size:0.7rem;color:var(--text3)">Rabat: ${fmtDK(d.rabat)} kr. · ${d.count} transaktioner</div>
+      <div style="display:flex;gap:12px;font-size:0.7rem;color:var(--text3);flex-wrap:wrap">
+        ${hasDiesel?`<span>⛽ ${fmtDK(d.dieselNetto)} kr. · rabat: ${fmtDK(d.dieselRabat)} kr.</span>`:''}
+        ${hasCharge?`<span>🔋 ${fmtDK(d.chargeNetto)} kr. · ${fmtDK(d.chargeKwh)} kWh</span>`:''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -3437,19 +3484,22 @@ function renderReportsList(el){
   el.innerHTML = _fuelReports.map(r => {
     const matched = (r.cards||[]).filter(c=>c.empId).length;
     const total = (r.cards||[]).length;
+    const isCharge = r.dataMode==='charging';
+    const typeBadge = isCharge ? '<span class="badge badge-purple">🔋 El</span>' : '<span class="badge badge-yellow">⛽ Diesel</span>';
     return `<div class="log-item" style="margin-bottom:8px">
       <div class="log-header">
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="badge badge-yellow">⛽ ${total} kort</span>
-          <span style="font-size:0.82rem;color:var(--text2)">${fmtDK(r.totalNetto||0)} kr. netto</span>
+          ${typeBadge}
+          <span style="font-size:0.78rem;color:var(--text3)">${total} kort</span>
+          <span style="font-size:0.82rem;color:var(--text2)">${fmtDK(r.totalNetto||0)} kr.</span>
+          ${isCharge&&r.totalKwh?`<span style="font-size:0.78rem;color:var(--purple)">${fmtDK(r.totalKwh)} kWh</span>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:0.75rem;color:var(--text3)">${matched}/${total} tildelt</span>
+          <span style="font-size:0.75rem;color:var(--text3)">${matched}/${total}</span>
           <span class="log-meta">${fmtDate(r.date||r.createdAt?.split('T')[0]||'')}</span>
           <button class="btn btn-danger btn-sm btn-icon" onclick="deleteFuelReport('${r.id}')">🗑️</button>
         </div>
       </div>
-      <div class="log-details" style="margin-top:6px">Rabat: ${fmtDK(r.totalRabat||0)} kr. · Uploadet af ${r.uploadedBy||'?'}</div>
     </div>`;
   }).join('');
 }
