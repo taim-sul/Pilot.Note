@@ -303,7 +303,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.3</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.4</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -332,7 +332,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.3</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.4</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -815,7 +815,7 @@
         <input type="checkbox" class="tag-check" id="exp-include-logs" checked /><label for="exp-include-logs">Noteringer</label>
         <input type="checkbox" class="tag-check" id="exp-include-cards" checked /><label for="exp-include-cards">Kort & Brikker</label>
         <input type="checkbox" class="tag-check" id="exp-include-invoices" checked /><label for="exp-include-invoices">Regninger</label>
-        <span id="exp-fuel-option" style="display:none"><input type="checkbox" class="tag-check" id="exp-include-fuel" /><label for="exp-include-fuel">⛽ Brændstof</label></span>
+        <span id="exp-fuel-option" style="display:none"><input type="checkbox" class="tag-check" id="exp-include-fuel" checked /><label for="exp-include-fuel">⛽ Brændstof</label></span>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -2354,53 +2354,91 @@ window.exportExcel = function(){
     }
   }
 
-  // ── 6. Brændstof fane (kun Masri) ──
+  // ── 6. Brændstof faner (kun Masri) — diesel og el adskilt ──
   if(incFuel && _fuelReports && _fuelReports.length){
-    // Company summary
-    const fuelSummary = [];
-    _fuelReports.forEach(r => {
-      (r.cards||[]).forEach(c => {
-        const emp = c.empId ? employees.find(e=>e.id===c.empId) : null;
-        fuelSummary.push({
-          'Rapport dato': r.date || (r.createdAt||'').split('T')[0] || '',
-          'Kort nr.': c.kortNr||'',
-          'Medarbejder': emp?.name||'Ikke tildelt',
-          'Tur nr.': emp?.tur||'',
-          'Netto (DKK)': c.netto||0,
-          'Rabat (DKK)': c.rabat||0
+    const dieselReports = _fuelReports.filter(r=>r.dataMode!=='charging');
+    const chargeReports = _fuelReports.filter(r=>r.dataMode==='charging');
+
+    // ── 6a. Diesel transaktioner ──
+    if(dieselReports.length){
+      const rows = [];
+      dieselReports.forEach(r => {
+        (r.cards||[]).forEach(c => {
+          const emp = c.empId ? employees.find(e=>e.id===c.empId) : null;
+          rows.push({
+            'Rapport dato': r.date||(r.createdAt||'').split('T')[0]||'',
+            'Kort nr.': c.kortNr||'',
+            'Medarbejder': emp?.name||'Ikke tildelt',
+            'Tur nr.': emp?.tur||'',
+            'Netto (DKK)': c.netto||0,
+            'Rabat (DKK)': c.rabat||0,
+            'Moms (DKK)': c.moms||0,
+            'Brutto (DKK)': c.brutto||0
+          });
         });
       });
-    });
-
-    if(fuelSummary.length){
-      const ws = XLSX.utils.json_to_sheet(fuelSummary);
-      ws['!cols'] = [12,12,22,10,14,14].map(w=>({wch:w}));
-      XLSX.utils.book_append_sheet(wb, ws, 'Brændstof');
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [12,12,22,10,14,14,14,14].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws, '⛽ Diesel');
     }
 
-    // Per-employee fuel summary
+    // ── 6b. El transaktioner ──
+    if(chargeReports.length){
+      const rows = [];
+      chargeReports.forEach(r => {
+        (r.cards||[]).forEach(c => {
+          const emp = c.empId ? employees.find(e=>e.id===c.empId) : null;
+          rows.push({
+            'Rapport dato': r.date||(r.createdAt||'').split('T')[0]||'',
+            'Kort / Brik': c.kortNr||'',
+            'Medarbejder': emp?.name||'Ikke tildelt',
+            'Tur nr.': emp?.tur||'',
+            'Netto (DKK)': Math.abs(c.netto||0),
+            'Moms (DKK)': Math.abs(c.moms||0),
+            'Brutto (DKK)': Math.abs(c.brutto||0),
+            'kWh': c.kwh||0,
+            'Antal': c.antal||0
+          });
+        });
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [12,16,22,10,14,14,14,10,8].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws, '🔋 El ladning');
+    }
+
+    // ── 6c. Forbrug pr. medarbejder (samlet oversigt) ──
     const empFuel = {};
     _fuelReports.forEach(r => {
+      const isCharge = r.dataMode==='charging';
       (r.cards||[]).forEach(c => {
         if(!c.empId) return;
-        if(!empFuel[c.empId]) empFuel[c.empId] = {netto:0, rabat:0, count:0};
-        empFuel[c.empId].netto += c.netto||0;
-        empFuel[c.empId].rabat += c.rabat||0;
-        empFuel[c.empId].count++;
+        if(!empFuel[c.empId]) empFuel[c.empId] = {dieselNetto:0,dieselRabat:0,chargeNetto:0,chargeKwh:0};
+        if(isCharge){
+          empFuel[c.empId].chargeNetto += Math.abs(c.netto||0);
+          empFuel[c.empId].chargeKwh += c.kwh||0;
+        } else {
+          empFuel[c.empId].dieselNetto += c.netto||0;
+          empFuel[c.empId].dieselRabat += c.rabat||0;
+        }
       });
     });
 
-    const empFuelRows = Object.entries(empFuel)
-      .sort((a,b) => b[1].netto - a[1].netto)
+    const empRows = Object.entries(empFuel)
+      .sort((a,b)=>(b[1].dieselNetto+b[1].chargeNetto)-(a[1].dieselNetto+a[1].chargeNetto))
       .map(([id, d]) => {
         const emp = employees.find(e=>e.id===id) || {name:'Ukendt',tur:'-'};
-        return {'Tur nr.':emp.tur, 'Navn':emp.name, 'Total netto (DKK)':d.netto, 'Total rabat (DKK)':d.rabat, 'Antal transaktioner':d.count};
+        return {
+          'Tur nr.':emp.tur, 'Navn':emp.name,
+          '⛽ Diesel netto':d.dieselNetto, '⛽ Diesel rabat':d.dieselRabat,
+          '🔋 El netto':d.chargeNetto, '🔋 El kWh':d.chargeKwh,
+          'Total netto':d.dieselNetto+d.chargeNetto
+        };
       });
 
-    if(empFuelRows.length){
-      const ws2 = XLSX.utils.json_to_sheet(empFuelRows);
-      ws2['!cols'] = [10,22,16,16,16].map(w=>({wch:w}));
-      XLSX.utils.book_append_sheet(wb, ws2, 'Brændstof pr. medarb.');
+    if(empRows.length){
+      const ws = XLSX.utils.json_to_sheet(empRows);
+      ws['!cols'] = [10,22,14,14,14,12,14].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb, ws, 'Forbrug pr. medarb.');
     }
   }
 
