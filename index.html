@@ -311,12 +311,16 @@
       <div class="login-user-name">Masri</div>
     </button>
     <button class="login-user-btn" onclick="loginAs('M.Ghanam')">
-      <div class="login-user-avatar">KH</div>
+      <div class="login-user-avatar">MG</div>
       <div class="login-user-name">M.Ghanam</div>
     </button>
     <button class="login-user-btn" onclick="loginAs('Rifai')">
       <div class="login-user-avatar">RI</div>
       <div class="login-user-name">Rifai</div>
+    </button>
+    <button class="login-user-btn" onclick="loginAs('Khaled')">
+      <div class="login-user-avatar">KH</div>
+      <div class="login-user-name">Khaled</div>
     </button>
     <button class="login-user-btn" onclick="document.getElementById('login-custom-area').style.display='flex';document.getElementById('login-custom-inp').focus()">
       <div class="login-user-avatar" style="background:linear-gradient(135deg,#475569,#1f2d45)">+</div>
@@ -955,7 +959,7 @@ function setOffline(){ if(syncDot()){syncDot().className='sync-dot offline'; syn
 // ═══════════════════════════════════════════════════
 //  CURRENT USER (ANSVARLIG)
 // ═══════════════════════════════════════════════════
-const PRESET_USERS = ['Masri','M.Ghanam','Rifai'];
+const PRESET_USERS = ['Masri','M.Ghanam','Rifai','Khaled'];
 function initUserSelector(){
   applyUser(currentUser);
 }
