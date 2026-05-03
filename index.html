@@ -85,7 +85,7 @@
     .vac-subtab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
     .vac-pending-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--yellow);margin-left:4px}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;transition:background 0.3s ease,color 0.3s ease;}
     body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(59,130,246,0.12) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 110%,rgba(168,85,247,0.08) 0%,transparent 60%);pointer-events:none;z-index:0;}
     #app{position:relative;z-index:1;min-height:100dvh;}
 
@@ -203,7 +203,7 @@
     .fab{position:fixed;bottom:22px;right:22px;width:54px;height:54px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 18px rgba(59,130,246,0.4);z-index:150;transition:all 0.2s;display:flex;align-items:center;justify-content:center;}
     .fab:hover{transform:scale(1.1);}
 
-    .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:100px;font-size:0.85rem;font-weight:500;z-index:500;opacity:0;transition:all 0.3s;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,0.4);}
+    .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:100px;font-size:0.85rem;font-weight:500;z-index:500;opacity:0;transition:all 0.3s;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,0.4);display:flex;align-items:center;gap:6px;}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
     .empty{text-align:center;padding:50px 20px;color:var(--text3);}
@@ -303,16 +303,16 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.6</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.7</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
       <div class="login-user-avatar">MA</div>
       <div class="login-user-name">Masri</div>
     </button>
-    <button class="login-user-btn" onclick="loginAs('M.Ghanam')">
-      <div class="login-user-avatar">MG</div>
-      <div class="login-user-name">M.Ghanam</div>
+    <button class="login-user-btn" onclick="loginAs('TEST')">
+      <div class="login-user-avatar">T</div>
+      <div class="login-user-name"TEST</div>
     </button>
     <button class="login-user-btn" onclick="loginAs('Rifai')">
       <div class="login-user-avatar">RI</div>
@@ -422,8 +422,10 @@
       <div class="form-group"><label>Til dato</label><input type="date" id="hist-to" onchange="renderHistory()" /></div>
       <div class="form-group" style="min-width:150px"><label>Medarbejder</label><select id="hist-emp" onchange="renderHistory()"><option value="">Alle</option></select></div>
     </div>
+    <div class="search-wrap" style="margin-bottom:10px"><span class="search-icon">🔍</span><input type="text" placeholder="Søg kommentar, navn, tur nr..." id="hist-search" oninput="renderHistory()" /></div>
     <div class="filter-bar" id="cat-filter-bar"></div>
     <div id="log-list"></div>
+    <div id="hist-pagination" style="text-align:center;padding:10px 0 4px"></div>
   </div>
 
   <!-- KORT & BRIKKER -->
@@ -502,7 +504,9 @@
         </select>
       </div>
     </div>
+    <div class="search-wrap" style="margin-bottom:10px"><span class="search-icon">🔍</span><input type="text" placeholder="Søg i revisionslog..." id="audit-search" oninput="renderAuditLog()" /></div>
     <div id="audit-list"></div>
+    <div id="audit-pagination" style="text-align:center;padding:10px 0 4px"></div>
   </div>
 
   <!-- BRÆNDSTOF (kun Masri + PIN) -->
@@ -1115,6 +1119,18 @@ function updateThemeBtn(){
 function todayStr(){ return new Date().toISOString().split('T')[0]; }
 
 // ═══════════════════════════════════════════════════
+//  SHARED SORT UTILITY
+// ═══════════════════════════════════════════════════
+function sortEmployees(arr){
+  return [...arr].sort((a,b)=>{
+    const na=parseInt((a.tur||'').replace(/\D/g,''))||0;
+    const nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
+    return na-nb || (a.name||'').localeCompare(b.name||'');
+  });
+}
+window.sortEmployees = sortEmployees;
+
+// ═══════════════════════════════════════════════════
 //  BUILT-IN CATEGORIES
 // ═══════════════════════════════════════════════════
 const BUILTIN = [
@@ -1228,6 +1244,16 @@ window.saveLog = async function() {
   });
   if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
 
+  // Date range validation: max 30 days back, max 365 days forward
+  const logDateVal = document.getElementById('log-date').value;
+  if(logDateVal && selectedCategory !== 'vacation'){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const logDate = new Date(logDateVal);
+    const diffDays = Math.round((logDate - today) / 864e5);
+    if(diffDays < -30){ toast('⚠️ Dato kan ikke være mere end 30 dage tilbage'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
+    if(diffDays > 365){ toast('⚠️ Dato kan ikke være mere end 365 dage frem'); btn.disabled=false; btn.textContent='💾 Gem notering'; return; }
+  }
+
   // ── FERIE: Opret som anmodning i stedet for notering ──
   if(selectedCategory === 'vacation'){
     const vacFrom = extra.vac_from;
@@ -1299,28 +1325,56 @@ window.saveLog = async function() {
   btn.disabled=false; btn.textContent='💾 Gem notering';
 };
 
+// ── Undo toast ──
+let _undoTimer = null;
+function toastUndo(msg, onConfirm){
+  if(_undoTimer) { clearTimeout(_undoTimer); }
+  const t = document.getElementById('toast');
+  t.innerHTML = msg + ' <button onclick="window._undoNow()" style="margin-left:10px;background:rgba(255,255,255,0.15);border:none;color:inherit;font-weight:700;padding:2px 10px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:0.85rem">Fortryd</button>';
+  t.classList.add('show');
+  let cancelled = false;
+  window._undoNow = () => {
+    if(window._undoCancel) window._undoCancel();
+  };
+  window._undoCancel = () => {
+    cancelled = true;
+    clearTimeout(_undoTimer);
+    t.innerHTML = '↩️ Sletning fortrydt';
+    setTimeout(() => t.classList.remove('show'), 1800);
+    window._undoCancel = null;
+    window._undoNow = null;
+  };
+  _undoTimer = setTimeout(() => {
+    t.classList.remove('show');
+    window._undoCancel = null;
+    window._undoNow = null;
+    if(!cancelled) onConfirm();
+  }, 5000);
+}
+
 // ═══════════════════════════════════════════════════
 //  DELETE LOG
 // ═══════════════════════════════════════════════════
 window.deleteLog = async function(id){
   if(!currentUser){ toast('⚠️ Vælg hvem du er øverst på siden'); return; }
-  if(!confirm('Slet denne notering?\nDette registreres i revisionsloggen.')) return;
   const original = logs.find(l=>l.id===id);
-  try{
-    setSyncing();
-    const b = _newBatch();
-    _batchDelete(b,'logs',id);
-    const auditRef = _newDocRef('auditLogs');
-    b.set(auditRef,{
-      action:'delete', logId:id,
-      snapshot: original||{},
-      by: currentUser,
-      timestamp: new Date().toISOString()
-    });
-    await b.commit();
-    setSynced(); toast('🗑️ Slettet');
-  }
-  catch(e){ toast('❌ '+e.message); }
+  toastUndo('🗑️ Sletter om 5 sek...', async () => {
+    try{
+      setSyncing();
+      const b = _newBatch();
+      _batchDelete(b,'logs',id);
+      const auditRef = _newDocRef('auditLogs');
+      b.set(auditRef,{
+        action:'delete', logId:id,
+        snapshot: original||{},
+        by: currentUser,
+        timestamp: new Date().toISOString()
+      });
+      await b.commit();
+      setSynced();
+    }
+    catch(e){ toast('❌ '+e.message); }
+  });
 };
 
 // ═══════════════════════════════════════════════════
@@ -1730,8 +1784,8 @@ function renderCards(){
         <div style="display:flex;align-items:center;gap:6px">
           ${c.active?'<span class="badge badge-green">Aktiv</span>':'<span class="badge badge-gray">Afleveret</span>'}
           <span class="log-meta">${fmtDate(c.date)}</span>
-          ${c.active?`<button class="btn btn-danger btn-sm btn-icon" onclick="returnCard('${c.id}')">↩️</button>`:''}
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="editCardName('${c.id}')" title="Rediger">✏️</button>
+          ${c.active?`<button class="btn btn-danger btn-sm btn-icon" onclick="returnCard('${c.id}')" aria-label="Aflever kort">↩️</button>`:''}
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="editCardName('${c.id}')" title="Rediger" aria-label="Rediger kort">✏️</button>
         </div>
       </div>
       ${c.number?`<div class="log-details">Nr./ID: <strong>${c.number}</strong></div>`:''}
@@ -1860,8 +1914,8 @@ function renderCustomCatsList(){
           <div style="font-size:0.75rem;color:var(--text3)">${(c.fields||[]).length} felter</div></div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="openCustomCatModal('${c.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteCustomCat('${c.id}')">🗑️</button>
+        <button class="btn btn-ghost btn-sm" onclick="openCustomCatModal('${c.id}')" aria-label="Rediger kategori">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomCat('${c.id}')" aria-label="Slet kategori">🗑️</button>
       </div>
     </div>`).join('');
 }
@@ -1923,9 +1977,10 @@ window.saveCustomCat = async function(){
 };
 
 window.deleteCustomCat = async function(id){
-  if(!confirm('Slet kategori?')) return;
-  try{ setSyncing(); await _delete('customCats',id); setSynced(); toast('🗑️ Slettet'); }
-  catch(e){ toast('❌ '+e.message); }
+  toastUndo('🗑️ Sletter kategori om 5 sek...', async () => {
+    try{ setSyncing(); await _delete('customCats',id); setSynced(); }
+    catch(e){ toast('❌ '+e.message); }
+  });
 };
 
 // ═══════════════════════════════════════════════════
@@ -1981,30 +2036,73 @@ function renderOverview(){
 // ═══════════════════════════════════════════════════
 //  HISTORY
 // ═══════════════════════════════════════════════════
+const HIST_PAGE_SIZE = 25;
+let _histPage = 0;
+
 function renderHistory(){
+  _histPage = 0; // reset on filter change
+  _renderHistoryPage();
+}
+
+function _renderHistoryPage(){
   const from  = document.getElementById('hist-from')?.value||'';
   const to    = document.getElementById('hist-to')?.value||'';
   const empId = document.getElementById('hist-emp')?.value||'';
+  const q     = (document.getElementById('hist-search')?.value||'').toLowerCase().trim();
   const cm=catMap();
+
   let filtered=logs.filter(l=>{
     if(from&&l.date<from) return false;
     if(to  &&l.date>to)   return false;
     if(empId&&l.empId!==empId) return false;
+    // Full-text search across comment, emp name, tur, category, extra fields
+    if(q){
+      const emp = employees.find(e=>e.id===l.empId)||{name:'',tur:''};
+      const cat = cm[l.category]||{label:''};
+      const extraText = Object.values(l.extra||{}).join(' ').toLowerCase();
+      const haystack = [emp.name, emp.tur, cat.label, l.comment||'', l.ansvarlig||'', extraText].join(' ').toLowerCase();
+      if(!haystack.includes(q)) return false;
+    }
     return true;
   });
+
   const bar=document.getElementById('cat-filter-bar');
   if(bar) bar.innerHTML=
     `<button class="filter-chip ${!_catFilter?'active':''}" onclick="setCatFilter('',this)">Alle (${filtered.length})</button>`+
     allCats().map(c=>{ const cnt=filtered.filter(l=>l.category===c.id).length;
       return cnt?`<button class="filter-chip ${_catFilter===c.id?'active':''}" onclick="setCatFilter('${c.id}',this)">${c.icon} ${c.label} (${cnt})</button>`:''}).join('');
   if(_catFilter) filtered=filtered.filter(l=>l.category===_catFilter);
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / HIST_PAGE_SIZE);
+  if(_histPage >= totalPages && totalPages > 0) _histPage = totalPages - 1;
+  const page = filtered.slice(_histPage * HIST_PAGE_SIZE, (_histPage + 1) * HIST_PAGE_SIZE);
+
   const list=document.getElementById('log-list'); if(!list) return;
-  list.innerHTML=filtered.length
-    ?filtered.map(l=>renderLogItem(l,cm,true)).join('')
-    :`<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen noteringer i perioden</div></div>`;
+  list.innerHTML = page.length
+    ? page.map(l=>renderLogItem(l,cm,true)).join('')
+    : `<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen noteringer i perioden</div></div>`;
+
+  // Pagination controls
+  const pgEl = document.getElementById('hist-pagination');
+  if(pgEl){
+    if(totalPages <= 1){ pgEl.innerHTML=''; return; }
+    const showing = Math.min((_histPage+1)*HIST_PAGE_SIZE, total);
+    const prevDis = _histPage===0 ? ' disabled' : '';
+    const nextDis = _histPage===totalPages-1 ? ' disabled' : '';
+    const nextPage = Math.min(totalPages-1, _histPage+1);
+    const prevPage = Math.max(0, _histPage-1);
+    pgEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">' +
+      '<button class="btn btn-ghost btn-sm"' + prevDis + ' onclick="_histPage=' + prevPage + ';_renderHistoryPage()">← Forrige</button>' +
+      '<span style="font-size:0.8rem;color:var(--text3)">' + (_histPage*HIST_PAGE_SIZE+1) + '–' + showing + ' af ' + total + '</span>' +
+      '<button class="btn btn-ghost btn-sm"' + nextDis + ' onclick="_histPage=' + nextPage + ';_renderHistoryPage()">Næste →</button>' +
+      '</div>';
+  }
 }
+window._renderHistoryPage = _renderHistoryPage;
 window.renderHistory = renderHistory;
-window.setCatFilter  = function(id,btn){ _catFilter=id; renderHistory(); };
+window.setCatFilter  = function(id,btn){ _catFilter=id; _histPage=0; renderHistory(); };
 
 // ═══════════════════════════════════════════════════
 //  LOG ITEM
@@ -2025,8 +2123,8 @@ function renderLogItem(l,cm,showDelete){
   const deletedStyle = isDeleted ? 'opacity:0.75;border-left:3px solid var(--red);' : '';
   return`<div class="log-item anim-in" style="padding-right:${showDelete?'88px':'16px'};${deletedStyle}">
     ${showDelete?`<div class="log-delete">
-      <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLogModal('${l.id}')" title="Rediger">✏️</button>
-      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLog('${l.id}')" title="Slet">🗑️</button>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditLogModal('${l.id}')" title="Rediger" aria-label="Rediger notering">✏️</button>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteLog('${l.id}')" title="Slet" aria-label="Slet notering">🗑️</button>
     </div>`:''}
     <div class="log-header">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px">
@@ -2058,10 +2156,19 @@ function buildExtraText(l,cat){
 // ═══════════════════════════════════════════════════
 //  AUDIT LOG
 // ═══════════════════════════════════════════════════
+const AUDIT_PAGE_SIZE = 25;
+let _auditPage = 0;
+
 function renderAuditLog(){
+  _auditPage = 0;
+  _renderAuditPage();
+}
+
+function _renderAuditPage(){
   const from  = document.getElementById('audit-from')?.value||'';
   const to    = document.getElementById('audit-to')?.value||'';
   const actionF = document.getElementById('audit-action-filter')?.value||'';
+  const q = (document.getElementById('audit-search')?.value||'').toLowerCase().trim();
   const list  = document.getElementById('audit-list'); if(!list) return;
   const cm=catMap();
   let filtered = auditLogs.filter(a=>{
@@ -2069,14 +2176,27 @@ function renderAuditLog(){
     if(from&&d<from) return false;
     if(to  &&d>to)   return false;
     if(actionF&&a.action!==actionF) return false;
+    if(q){
+      const snap = a.action==='edit'?a.before:a.snapshot;
+      const empName = a.snapshot?.empName||snap?.empName||employees.find(e=>e.id===snap?.empId)?.name||'';
+      const empTur  = a.snapshot?.empTur ||snap?.empTur ||employees.find(e=>e.id===snap?.empId)?.tur||'';
+      const cat     = cm[snap?.category]||{label:''};
+      const haystack = [empName, empTur, cat.label, a.by||'', a.action||'', snap?.comment||''].join(' ').toLowerCase();
+      if(!haystack.includes(q)) return false;
+    }
     return true;
   });
   if(!filtered.length){
     list.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div style="font-size:0.9rem">Ingen handlinger i perioden</div></div>`;
+    const pgEl2=document.getElementById('audit-pagination'); if(pgEl2) pgEl2.innerHTML='';
     return;
   }
+  const totalA = filtered.length;
+  const totalPagesA = Math.ceil(totalA / AUDIT_PAGE_SIZE);
+  if(_auditPage >= totalPagesA && totalPagesA > 0) _auditPage = totalPagesA - 1;
+  const pageItems = filtered.slice(_auditPage * AUDIT_PAGE_SIZE, (_auditPage + 1) * AUDIT_PAGE_SIZE);
   const actionLabel={create:'✅ Oprettet',edit:'✏️ Redigeret',delete:'🗑️ Slettet'};
-  list.innerHTML=filtered.map(a=>{
+  list.innerHTML=pageItems.map(a=>{
     const snap=a.action==='edit'?a.before:a.snapshot;
     const _snapLog = logs.find(l=>l.id===a.logId);
 
@@ -2206,12 +2326,26 @@ function renderAuditLog(){
       ${diffHtml}
     </div>`;
   }).join('');
-}
-window.renderAuditLog = renderAuditLog;
 
-// ═══════════════════════════════════════════════════
-//  SELECTS
-// ═══════════════════════════════════════════════════
+  // Pagination
+  const pgEl = document.getElementById('audit-pagination');
+  if(pgEl){
+    if(totalPagesA <= 1){ pgEl.innerHTML=''; return; }
+    const showingA = Math.min((_auditPage+1)*AUDIT_PAGE_SIZE, totalA);
+    const prevDisA = _auditPage===0 ? ' disabled' : '';
+    const nextDisA = _auditPage===totalPagesA-1 ? ' disabled' : '';
+    const nextPageA = Math.min(totalPagesA-1, _auditPage+1);
+    const prevPageA = Math.max(0, _auditPage-1);
+    pgEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">' +
+      '<button class="btn btn-ghost btn-sm"' + prevDisA + ' onclick="_auditPage=' + prevPageA + ';_renderAuditPage()">← Forrige</button>' +
+      '<span style="font-size:0.8rem;color:var(--text3)">' + (_auditPage*AUDIT_PAGE_SIZE+1) + '–' + showingA + ' af ' + totalA + '</span>' +
+      '<button class="btn btn-ghost btn-sm"' + nextDisA + ' onclick="_auditPage=' + nextPageA + ';_renderAuditPage()">Næste →</button>' +
+      '</div>';
+  }
+}
+window._renderAuditPage = _renderAuditPage;
+window.renderAuditLog = renderAuditLog;
 function populateEmpSelects(){
   const sorted=[...employees].sort((a,b)=>{
     const na=parseInt(a.tur.replace(/\D/g,''))||0, nb=parseInt(b.tur.replace(/\D/g,''))||0;
@@ -2615,13 +2749,47 @@ window.restoreBackup = async function(e){
 // ═══════════════════════════════════════════════════
 //  MODAL + TOAST + UTILS
 // ═══════════════════════════════════════════════════
-function openModal(id) { document.getElementById(id).classList.add('open');    }
+const FOCUSABLE = 'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function openModal(id) {
+  const el = document.getElementById(id);
+  el.classList.add('open');
+  // Focus first focusable element inside modal
+  setTimeout(() => {
+    const first = el.querySelector('.modal ' + FOCUSABLE);
+    if(first) first.focus();
+  }, 50);
+}
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 window.openModal  = openModal;
 window.closeModal = closeModal;
+
+// ESC closes the topmost open modal
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  const open = [...document.querySelectorAll('.modal-overlay.open')];
+  if(open.length) {
+    open[open.length-1].classList.remove('open');
+    e.preventDefault();
+  }
+});
+
+// Focus trap: keep Tab inside open modal
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Tab') return;
+  const open = document.querySelector('.modal-overlay.open');
+  if(!open) return;
+  const modal = open.querySelector('.modal');
+  if(!modal) return;
+  const focusable = [...modal.querySelectorAll(FOCUSABLE)];
+  if(!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length-1];
+  if(e.shiftKey) { if(document.activeElement === first) { last.focus(); e.preventDefault(); } }
+  else           { if(document.activeElement === last)  { first.focus(); e.preventDefault(); } }
+});
 function toast(msg){
   const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
+  t.innerHTML=msg; t.classList.add('show');
+  if(_undoTimer){ clearTimeout(_undoTimer); window._undoCancel=null; }
   setTimeout(()=>t.classList.remove('show'),2800);
 }
 function fmtDate(d){ if(!d)return''; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; }
@@ -3020,6 +3188,8 @@ function renderVacAllList(){
   const el = document.getElementById('vac-all-list'); if(!el) return;
   let filtered = vacRequests;
   if(_vacFilter!=='all') filtered=vacRequests.filter(r=>r.status===_vacFilter);
+  // Sort by startDate descending (most recent first)
+  filtered = [...filtered].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   if(!filtered.length){
     el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div style="font-size:0.9rem">Ingen anmodninger</div></div>';
     return;
@@ -3094,6 +3264,18 @@ window.saveVacRequest = async function(){
   if(start>end){toast('⚠️ Fra-dato skal være før til-dato');return;}
   if(!currentUser){toast('⚠️ Vælg hvem du er');return;}
 
+  // Overlap check: reject if approved or pending request overlaps
+  const overlap = vacRequests.find(r =>
+    r.empId === empId &&
+    r.status !== 'rejected' &&
+    r.startDate <= end && r.endDate >= start
+  );
+  if(overlap){
+    const emp2 = employees.find(e=>e.id===empId)||{name:'?'};
+    const overlapStatus = overlap.status==='approved' ? 'godkendt' : 'afventende';
+    toast('⚠️ ' + emp2.name + ' har allerede ' + overlapStatus + ' ferie ' + fmtDate(overlap.startDate) + '–' + fmtDate(overlap.endDate));
+    return;
+  }
   const emp = employees.find(e=>e.id===empId)||{name:'?',tur:'-'};
   const btn=document.getElementById('vac-save-btn');
   btn.disabled=true; btn.textContent='Gemmer...';
@@ -3116,9 +3298,10 @@ window.saveVacRequest = async function(){
 };
 
 window.deleteVacRequest = async function(id){
-  if(!confirm('Slet denne ferie-anmodning?')) return;
-  try{setSyncing();await _delete('vacRequests',id);setSynced();toast('🗑️ Slettet');}
-  catch(e){toast('❌ '+e.message)}
+  toastUndo('🗑️ Sletter ferie om 5 sek...', async () => {
+    try{setSyncing();await _delete('vacRequests',id);setSynced();}
+    catch(e){toast('❌ '+e.message)}
+  });
 };
 
 // ── Pending dot ──
