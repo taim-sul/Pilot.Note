@@ -298,6 +298,7 @@
 <!-- LOADING -->
 <div id="loading-screen">
   <div class="loading-logo">Pilot<span>.</span>Note</div>
+  <div style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);margin-top:-12px">v4.8</div>
   <div class="spinner"></div>
   <div class="loading-status" id="loading-status">Forbinder til database...</div>
 </div>
@@ -305,16 +306,16 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.6</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.8</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
       <div class="login-user-avatar">MA</div>
       <div class="login-user-name">Masri</div>
     </button>
-    <button class="login-user-btn" onclick="loginAs('T')">
-      <div class="login-user-avatar">T</div>
-      <div class="login-user-name">T</div>
+    <button class="login-user-btn" onclick="loginAs('M.Ghanam')">
+      <div class="login-user-avatar">MG</div>
+      <div class="login-user-name">M.Ghanam</div>
     </button>
     <button class="login-user-btn" onclick="loginAs('Rifai')">
       <div class="login-user-avatar">RI</div>
@@ -338,7 +339,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.9</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.6</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -485,6 +486,9 @@
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('restore-input').click()">📤 Gendan fra JSON</button>
         <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreBackup(event)" />
       </div>
+    </div>
+    <div style="text-align:center;padding:18px 0 4px;font-size:0.72rem;color:var(--text3);font-family:var(--mono)">
+      Pilot.Note <span style="color:var(--accent)">v4.8</span> &nbsp;·&nbsp; Bygget med ❤️
     </div>
   </div>
 
