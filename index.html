@@ -2150,6 +2150,9 @@ function _renderAuditPage(){
     list.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div style="font-size:0.9rem">Ingen handlinger i perioden</div></div>`;
     return;
   }
+  const totalA=filtered.length, totalPagesA=Math.ceil(totalA/AUDIT_PAGE_SIZE)||1;
+  if(_auditPage>=totalPagesA) _auditPage=totalPagesA-1;
+  const pageItems=filtered.slice(_auditPage*AUDIT_PAGE_SIZE,(_auditPage+1)*AUDIT_PAGE_SIZE);
   const actionLabel={create:'✅ Oprettet',edit:'✏️ Redigeret',delete:'🗑️ Slettet'};
   list.innerHTML=pageItems.map(a=>{
     const snap=a.action==='edit'?a.before:a.snapshot;
@@ -2283,10 +2286,6 @@ function _renderAuditPage(){
   }).join('');
 
   // Pagination
-  const totalA=filtered.length, totalPagesA=Math.ceil(totalA/AUDIT_PAGE_SIZE)||1;
-  if(_auditPage>=totalPagesA) _auditPage=totalPagesA-1;
-  const pageItems=filtered.slice(_auditPage*AUDIT_PAGE_SIZE,(_auditPage+1)*AUDIT_PAGE_SIZE);
-  // Render only pageItems (replace filtered reference in map below - done via slice above)
   const pgEl=document.getElementById('audit-pagination');
   if(pgEl){
     if(totalPagesA<=1){pgEl.innerHTML='';}
