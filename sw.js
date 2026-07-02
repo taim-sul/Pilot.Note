@@ -1,5 +1,5 @@
 // Bump version to force cache clear on all devices
-const CACHE = 'pilotnote-v4';
+const CACHE = 'pilotnote-v5';
 
 // Only cache the app shell — never Firebase or external CDN scripts
 const SHELL = [
