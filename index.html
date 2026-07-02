@@ -54,14 +54,17 @@
     .vac-cal-nav button{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 12px;cursor:pointer;font-size:1rem}
     .vac-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:10px}
     .vac-day-name{text-align:center;font-size:0.65rem;font-weight:600;color:var(--text3);padding:4px 0}
-    .vac-day{min-height:34px;border-radius:5px;padding:2px;background:var(--surface);border:1px solid var(--border);cursor:pointer;position:relative;transition:border-color .15s}
+    .vac-day{min-height:44px;border-radius:5px;padding:2px;background:var(--surface);border:1px solid var(--border);cursor:pointer;position:relative;transition:border-color .15s}
     .vac-day:hover{border-color:var(--accent)}
     .vac-day.empty{background:transparent;border-color:transparent;cursor:default}
     .vac-day.today{border-color:var(--accent)}
     .vac-day .vd-num{font-size:0.65rem;font-weight:500;color:var(--text3);line-height:1}
     .vac-day.today .vd-num{color:var(--accent);font-weight:700}
-    .vac-day .vd-dots{display:flex;flex-wrap:wrap;gap:1px;margin-top:2px}
-    .vac-dot{width:6px;height:6px;border-radius:2px}
+    .vac-day .vd-dots{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px}
+    .vac-chip{font-size:0.52rem;font-weight:700;color:#fff;border-radius:3px;padding:1px 3px;line-height:1.25;letter-spacing:0.3px}
+    .vac-chip.pending{background:transparent;border:1px dashed currentColor}
+    .vac-chip.more{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+    .vac-day-detail-box{margin-top:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
     .vac-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
     .vac-legend-item{display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text3)}
     .vac-legend-dot{width:8px;height:8px;border-radius:3px}
@@ -298,7 +301,7 @@
 <!-- LOADING -->
 <div id="loading-screen">
   <div class="loading-logo">Pilot<span>.</span>Note</div>
-  <div style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);margin-top:-12px">v4.8</div>
+  <div style="font-size:0.72rem;color:var(--text3);font-family:var(--mono);margin-top:-12px">v4.9</div>
   <div class="spinner"></div>
   <div class="loading-status" id="loading-status">Forbinder til database...</div>
 </div>
@@ -306,7 +309,7 @@
 <!-- USER LOGIN SCREEN -->
 <div id="user-login-screen" style="display:none">
   <div class="login-logo">Pilot<span>.</span>Note</div>
-  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.8</span></div>
+  <div class="login-sub">Daglig medarbejderopfølgning · <span style="font-family:var(--mono);font-size:0.75rem">v4.9</span></div>
   <div class="login-title">Hvem er du?</div>
   <div class="login-users" id="login-user-grid">
     <button class="login-user-btn" onclick="loginAs('Masri')">
@@ -339,7 +342,7 @@
 <div id="app" style="display:none">
 
   <div class="topbar">
-    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.8</span></div>
+    <div class="logo">Pilot<span>.</span>Note <span style="font-family:var(--mono);font-size:0.55rem;color:var(--text3);font-weight:400;vertical-align:super;margin-left:2px">v4.9</span></div>
     <div class="topbar-right">
       <div class="sync-status"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Live</span></div>
       <div class="topbar-actions">
@@ -365,6 +368,7 @@
     <button class="nav-btn" onclick="showView('history',this)">📋 Historik</button>
     <button class="nav-btn" onclick="showView('cards',this)">💳 Kort & Brikker</button>
     <button class="nav-btn" id="fuel-nav-btn" style="display:none" onclick="showView('fuel',this)">⛽ Brændstof</button>
+    <button class="nav-btn" onclick="showView('invoices',this)">📦 Fakturaer</button>
     <button class="nav-btn" onclick="showView('vacation',this)">🏖️ Ferie</button>
     <button class="nav-btn" onclick="showView('settings',this)">⚙️ Indstillinger</button>
     <button class="nav-btn" onclick="showView('auditlog',this)">🔍 Revisionslog</button>
@@ -490,7 +494,7 @@
       </div>
     </div>
     <div style="text-align:center;padding:18px 0 4px;font-size:0.72rem;color:var(--text3);font-family:var(--mono)">
-      Pilot.Note <span style="color:var(--accent)">v4.8</span> &nbsp;·&nbsp; Bygget med ❤️
+      Pilot.Note <span style="color:var(--accent)">v4.9</span> &nbsp;·&nbsp; Bygget med ❤️
     </div>
   </div>
 
@@ -593,6 +597,58 @@
     </div>
   </div>
 
+  <!-- FAKTURAIMPORT -->
+  <div class="view" id="view-invoices">
+    <div class="row-between" style="margin-bottom:18px">
+      <div><div class="view-title">📦 Fakturaimport</div><div class="view-sub">Match leverancer fra faktura + ordreliste til medarbejdere</div></div>
+    </div>
+
+    <!-- STEP 1: UPLOAD FAKTURA PDF -->
+    <div class="card" id="inv-upload-pdf-card">
+      <div class="section-title">1️⃣ Upload faktura (PDF)</div>
+      <div id="inv-pdf-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('inv-pdf-input').click()">
+        <input type="file" id="inv-pdf-input" accept=".pdf" style="display:none" />
+        <div style="font-size:1.8rem;margin-bottom:6px;opacity:0.5">📄</div>
+        <div style="font-size:0.88rem;font-weight:600">Klik for at vælge faktura-PDF</div>
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">GLS-faktura med Leverancenr. og Ref.</div>
+      </div>
+      <div id="inv-pdf-status" style="display:none;margin-top:10px;display:flex;align-items:center;gap:10px">
+        <div class="spinner" style="width:18px;height:18px;border-width:2.5px;display:block"></div>
+        <span style="font-size:0.82rem;color:var(--text2)">Analyserer PDF...</span>
+      </div>
+      <div id="inv-pdf-summary" style="display:none;margin-top:10px;font-size:0.82rem;color:var(--text2)"></div>
+      <div id="inv-pdf-error" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:0.82rem"></div>
+    </div>
+
+    <!-- STEP 2: UPLOAD CSV -->
+    <div class="card" id="inv-upload-csv-card" style="display:none">
+      <div class="section-title">2️⃣ Upload ordreliste (CSV)</div>
+      <div id="inv-csv-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('inv-csv-input').click()">
+        <input type="file" id="inv-csv-input" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel,*/*" style="display:none" />
+        <div style="font-size:1.8rem;margin-bottom:6px;opacity:0.5">📋</div>
+        <div style="font-size:0.88rem;font-weight:600">Klik for at vælge CSV-fil</div>
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:4px">Skal indeholde Ordrenr. og Kontakt</div>
+      </div>
+      <div id="inv-csv-error" style="display:none;margin-top:10px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:0.82rem"></div>
+    </div>
+
+    <!-- STEP 3: MATCHING -->
+    <div class="card" id="inv-match-card" style="display:none">
+      <div class="section-title">3️⃣ Match leverancer til medarbejdere</div>
+      <div class="view-sub" style="margin-bottom:12px">Bekræft eller vælg medarbejder for hver leverance. Ikke-matchede skal håndteres manuelt.</div>
+      <div id="inv-match-list"></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-ghost" style="flex:1" onclick="resetInvoiceImport()">Annuller</button>
+        <button class="btn btn-primary" style="flex:1" id="inv-save-btn" onclick="saveInvoiceImport()">💾 Gem faktura</button>
+      </div>
+    </div>
+
+    <!-- HISTORIK OVER IMPORTEREDE FAKTURAER -->
+    <hr class="divider" />
+    <div class="section-title">📜 Importerede fakturaer</div>
+    <div id="inv-history-list"></div>
+  </div>
+
   <!-- FERIE & FRIDAGE -->
   <div class="view" id="view-vacation">
     <div class="row-between" style="margin-bottom:14px">
@@ -617,6 +673,7 @@
         </div>
         <div id="vac-legend" class="vac-legend"></div>
         <div class="vac-cal-grid" id="vac-cal-grid"></div>
+        <div id="vac-day-detail"></div>
       </div>
       <div id="vac-month-list" style="margin-top:12px"></div>
     </div>
@@ -942,9 +999,16 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db  = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-});
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch(e) {
+  console.error('Firestore persistence failed, falling back to memory cache:', e);
+  // Fallback: memory-only cache (no offline persistence, but app still loads)
+  db = initializeFirestore(app, {});
+}
 
 // ── Firestore helpers ──────────────────────────────
 const colRef   = name          => collection(db, name);
@@ -976,6 +1040,27 @@ let editingEmpId=null, editingCCId=null, editingLogId=null;
 let editSelectedEmpId=null, editSelectedCategory=null;
 let selectedCategory=null, selectedEmpId=null;
 let _cardFilter='', _catFilter='';
+
+// ── HTML-escaping af brugerdata (XSS-værn) ─────────
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ═══════════════════════════════════════════════════
+//  SHARED EMPLOYEE HELPERS
+// ═══════════════════════════════════════════════════
+function sortEmployees(arr){
+  return [...arr].sort((a,b) => {
+    const na = parseInt((a.tur||'').replace(/\D/g,'')) || 0;
+    const nb = parseInt((b.tur||'').replace(/\D/g,'')) || 0;
+    return na - nb || (a.name||'').localeCompare(b.name||'');
+  });
+}
+
+function empDropdownOptions(emps, placeholder){
+  const opts = emps.map(e => '<option value="'+e.id+'">'+e.tur+' — '+e.name+'</option>').join('');
+  return placeholder !== undefined ? '<option value="">'+placeholder+'</option>'+opts : opts;
+}
 
 // ═══════════════════════════════════════════════════
 //  SYNC STATUS
@@ -1054,6 +1139,12 @@ function startListeners() {
     auditLogs = snap.docs.map(d => ({id:d.id,...d.data()}));
     renderAuditLog();
   }, err => console.error('auditLogs:', err));
+
+  // Invoice imports — does not block app startup, needed for employee balance display
+  _snap('invoiceImports', [orderBy('createdAt','desc')], snap => {
+    _invoiceImports = snap.docs.map(d => ({id:d.id,...d.data()}));
+    renderEmployees(); renderInvoiceHistory();
+  }, err => console.error('invoiceImports:', err));
 }
 
 const _readySets = new Set();
@@ -1161,7 +1252,7 @@ const BUILTIN = [
   {id:'external_drive',icon:'🚛',label:'Kørsel for ekstern vognmand',color:'cyan',fields:[{id:'ext_company',label:'Vognmand / firma',type:'text',placeholder:'Firma ApS'},{id:'ext_hours',label:'Timer kørt',type:'number',placeholder:'8'},{id:'ext_date',label:'Dato',type:'date'}]},
   {id:'invoice',icon:'💸',label:'Regning modtaget',color:'red',fields:[{id:'inv_type',label:'Type',type:'select',options:['Bøde','Værksted','Vejhjælp','Selvrisiko','Andet']},{id:'inv_sender',label:'Afsender',type:'text',placeholder:'Fx Rigspolitiet'},{id:'inv_amount',label:'Beløb (kr.)',type:'number',placeholder:'1500'},{id:'inv_ref',label:'Reference',type:'text',placeholder:'Valgfri'}]},
   {id:'timeclock',icon:'🕐',label:'Tidsregistrering app',color:'cyan',fields:[{id:'tc_status',label:'Status',type:'select',options:['Tjekket ind','Tjekket ud','Glemt check-ind','Glemt check-ud','App-fejl']},{id:'tc_time',label:'Tidspunkt',type:'text',placeholder:'Fx 07:42'},{id:'tc_note',label:'Bemærkning',type:'text',placeholder:'Fx kunne ikke logge ind'}]},
-  {id:'vacation',icon:'🏖️',label:'Ferie',color:'blue',fields:[{id:'vac_from',label:'Fra dato',type:'date'},{id:'vac_to',label:'Til dato',type:'date'},{id:'vac_type',label:'Type',type:'select',options:['Ferie','Feriefridag','Afspadsering','Barns sygedag','Orlov']},{id:'vac_days',label:'Antal dage',type:'number',placeholder:'5'}]},
+  {id:'vacation',icon:'🏖️',label:'Ferie',color:'blue',fields:[{id:'vac_from',label:'Fra dato',type:'date'},{id:'vac_to',label:'Til dato',type:'date'},{id:'vac_type',label:'Type',type:'select',options:['Ferie','Feriefridag','Afspadsering','Barns sygedag','Orlov']}]},
   {id:'other',icon:'📝',label:'Andet',color:'gray',fields:[]},
 ];
 function allCats(){ return [...BUILTIN,...customCats.map(c=>({...c,isCustom:true}))]; }
@@ -1184,6 +1275,7 @@ function showView(id,btn){
   if(id==='scanner') initScanner();
   if(id==='fuel' && !_fuelUnlocked) { /* PIN gate shows by default */ }
   if(id==='vacation') initVacation();
+  if(id==='invoices') initInvoiceImport();
 }
 window.showView = showView;
 
@@ -1194,7 +1286,7 @@ function renderCatGrid(){
   const el = document.getElementById('cat-grid'); if(!el) return;
   el.innerHTML = allCats().map(c=>`
     <button class="cat-btn ${selectedCategory===c.id?'selected':''}" onclick="selectCategory('${c.id}')">
-      <span class="cat-icon">${c.icon}</span>${c.label}
+      <span class="cat-icon">${c.icon}</span>${esc(c.label)}
     </button>`).join('');
 }
 window.selectCategory = function(id){
@@ -1228,14 +1320,10 @@ function renderExtraFields(){
 function renderEmpPills(){
   const c=document.getElementById('emp-pills-log'); if(!c) return;
   const q=(document.getElementById('emp-pill-search')?.value||'').toLowerCase();
-  const sorted = [...employees].sort((a,b) => {
-    const na = parseInt((a.tur||'').replace(/\D/g,'')) || 0;
-    const nb = parseInt((b.tur||'').replace(/\D/g,'')) || 0;
-    return na - nb || (a.name||'').localeCompare(b.name||'');
-  });
+  const sorted = sortEmployees(employees);
   const filtered = q ? sorted.filter(e => e.tur.toLowerCase().includes(q) || e.name.toLowerCase().includes(q)) : sorted;
   c.innerHTML = filtered.length
-    ? filtered.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+    ? filtered.map(e=>`<div class="emp-pill ${selectedEmpId===e.id?'selected':''}" onclick="selectEmp('${e.id}')">${esc(e.tur)} — ${esc(e.name.split(' ')[0])}</div>`).join('')
     : q ? '<span style="color:var(--text3);font-size:0.85rem">Ingen match</span>'
         : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
 }
@@ -1269,6 +1357,15 @@ window.saveLog = async function() {
     const emp = employees.find(e=>e.id===selectedEmpId)||{name:'?',tur:'-'};
     const comment = document.getElementById('log-comment').value;
 
+    // Blokér overlappende ferie for samme medarbejder
+    const overlap = findVacOverlap(selectedEmpId, vacFrom, vacTo);
+    if(overlap.length){
+      const o = overlap[0];
+      toast(`⚠️ ${emp.name} har allerede ${o.status==='approved'?'godkendt':'afventende'} ferie ${fmtDate(o.startDate)} – ${fmtDate(o.endDate)}`);
+      btn.disabled=false; btn.textContent='💾 Gem notering';
+      return;
+    }
+
     try {
       setSyncing();
       const ref = await _add('vacRequests', {
@@ -1301,6 +1398,16 @@ window.saveLog = async function() {
   }
 
   // ── Normal notering ──
+  // Konflikt-tjek: er medarbejderen på godkendt ferie denne dag?
+  const _logDate = document.getElementById('log-date').value;
+  const _vacHit = findApprovedVacOnDate(selectedEmpId, _logDate);
+  if(_vacHit){
+    const _vEmp = employees.find(e=>e.id===selectedEmpId)||{name:'?'};
+    if(!confirm(`⚠️ ${_vEmp.name} er på godkendt ferie ${fmtDate(_vacHit.startDate)} – ${fmtDate(_vacHit.endDate)}.\n\nEn notering samme dag kan give dobbelt fradrag i arbejdsdage.\n\nGem alligevel?`)){
+      btn.disabled=false; btn.textContent='💾 Gem notering';
+      return;
+    }
+  }
   try {
     setSyncing();
     const logData = {
@@ -1366,13 +1473,9 @@ window.openEditLogModal = function(id){
 
 function renderEditEmpPills(){
   const c=document.getElementById('edit-emp-pills'); if(!c) return;
-  const sorted = [...employees].sort((a,b) => {
-    const na = parseInt((a.tur||'').replace(/\D/g,'')) || 0;
-    const nb = parseInt((b.tur||'').replace(/\D/g,'')) || 0;
-    return na - nb || (a.name||'').localeCompare(b.name||'');
-  });
+  const sorted = sortEmployees(employees);
   c.innerHTML = sorted.map(e=>
-    `<div class="emp-pill ${editSelectedEmpId===e.id?'selected':''}" onclick="selectEditEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`
+    `<div class="emp-pill ${editSelectedEmpId===e.id?'selected':''}" onclick="selectEditEmp('${e.id}')">${esc(e.tur)} — ${esc(e.name.split(' ')[0])}</div>`
   ).join('');
 }
 window.selectEditEmp = function(id){ editSelectedEmpId=id; renderEditEmpPills(); };
@@ -1381,7 +1484,7 @@ function renderEditCatGrid(){
   const el=document.getElementById('edit-cat-grid'); if(!el) return;
   el.innerHTML = allCats().map(c=>
     `<button class="cat-btn ${editSelectedCategory===c.id?'selected':''}" onclick="selectEditCategory('${c.id}')">
-      <span class="cat-icon">${c.icon}</span>${c.label}
+      <span class="cat-icon">${c.icon}</span>${esc(c.label)}
     </button>`).join('');
 }
 window.selectEditCategory = function(id){
@@ -1461,11 +1564,7 @@ window.saveEditLog = async function(){
 function renderEmployees(){
   const q=(document.getElementById('emp-search')?.value||'').toLowerCase();
   const list=document.getElementById('emp-list'); if(!list) return;
-  const filtered=employees.filter(e=>e.name.toLowerCase().includes(q)||e.tur.toLowerCase().includes(q))
-    .sort((a,b)=>{
-      const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-      return na-nb || (a.name||'').localeCompare(b.name||'');
-    });
+  const filtered=sortEmployees(employees.filter(e=>e.name.toLowerCase().includes(q)||e.tur.toLowerCase().includes(q)));
   if(!filtered.length){
     list.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div style="font-size:0.9rem">${q?'Ingen resultater':'Ingen medarbejdere endnu'}</div></div>`;
     return;
@@ -1475,16 +1574,17 @@ function renderEmployees(){
     const cnt=logs.filter(l=>l.empId===e.id).length;
     const empCards=cards.filter(c=>c.empId===e.id&&c.active);
     const cardIcons=empCards.map(c=>({fuel:'⛽',charge:'🔋',key:'🔑',evotec:'📟'}[c.type]||'💳')).join('');
+    const invBal=getEmployeeTotalDeductions(e.id);
     return`<div class="emp-card" onclick="openEmpDetail('${e.id}')">
-      <div class="emp-avatar">${ini}</div>
+      <div class="emp-avatar">${esc(ini)}</div>
       <div class="emp-info">
-        <div class="emp-name">${e.name} <span style="font-size:0.9rem">${cardIcons}</span></div>
-        <div class="emp-tur">Tur ${e.tur} · ${cnt} noteringer · <span style="font-size:0.72rem;opacity:0.8">${e.workerType==='contractor'?'🚛 Vognmand':'👤 Ansat'}</span>${e.lastDrive?' <span style="color:var(--red)">· Slut: '+fmtDate(e.lastDrive)+'</span>':''}</div>
+        <div class="emp-name">${esc(e.name)} <span style="font-size:0.9rem">${cardIcons}</span></div>
+        <div class="emp-tur">Tur ${esc(e.tur)} · ${cnt} noteringer · <span style="font-size:0.72rem;opacity:0.8">${e.workerType==='contractor'?'🚛 Vognmand':'👤 Ansat'}</span>${e.lastDrive?' <span style="color:var(--red)">· Slut: '+fmtDate(e.lastDrive)+'</span>':''}${invBal>0?' <span style="color:var(--red)">· 📦 '+fmtDK(invBal)+' kr.</span>':''}</div>
         ${e.trainingStart?`<div style="font-size:0.72rem;color:var(--text3)">📚 ${fmtDate(e.trainingStart)}${e.firstDrive?' · 🚗 '+fmtDate(e.firstDrive):''}</div>`:''}
       </div>
       <div class="emp-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEmpModal('${e.id}')">✏️</button>
-        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteEmp('${e.id}')">🗑️</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="openEmpModal('${e.id}')" aria-label="Rediger medarbejder">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteEmp('${e.id}')" aria-label="Slet medarbejder">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -1561,11 +1661,13 @@ window.openEmpDetail = function(id){
   const emp=employees.find(e=>e.id===id); if(!emp) return;
   const empLogs=logs.filter(l=>l.empId===id);
   const empCards=cards.filter(c=>c.empId===id);
+  const totalDeductions = getEmployeeTotalDeductions(id);
+  const deductionLines = getEmployeeDeductionsInPeriod(id, null, null);
   const cm=catMap();
   document.getElementById('log-detail-content').innerHTML=`
     <div style="margin-bottom:16px">
-      <div style="font-size:1.1rem;font-weight:700">${emp.name}</div>
-      <div style="color:var(--accent2);font-family:var(--mono);margin-bottom:8px">Tur ${emp.tur}</div>
+      <div style="font-size:1.1rem;font-weight:700">${esc(emp.name)}</div>
+      <div style="color:var(--accent2);font-family:var(--mono);margin-bottom:8px">Tur ${esc(emp.tur)}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:0.8rem;color:var(--text3)">
         ${emp.trainingStart?`<span>📚 Oplæring: ${fmtDate(emp.trainingStart)}</span>`:''}
         ${emp.firstDrive   ?`<span>🚗 Første kørsel: ${fmtDate(emp.firstDrive)}</span>`:''}
@@ -1573,6 +1675,14 @@ window.openEmpDetail = function(id){
       </div>
       ${emp.note?`<div style="margin-top:8px;font-size:0.83rem;color:var(--text2);font-style:italic">${emp.note}</div>`:''}
     </div>
+    ${deductionLines.length?`<div class="section-title">💰 Trukket beløb (løbende, alle kilder)</div>
+      <div style="margin-bottom:8px;padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2)">
+        <span style="font-weight:700;color:var(--red)">${fmtDK(totalDeductions)} kr.</span>
+        <span style="font-size:0.78rem;color:var(--text3)"> samlet fra ${deductionLines.length} post(er)</span>
+      </div>
+      ${deductionLines.map(l=>`<div class="card-row">
+        <span style="font-size:0.8rem">${l.source==='import'?'📦':'💸'} ${l.label}</span>
+        <span style="font-size:0.78rem;color:var(--red)">${fmtDK(l.beløb)} kr. · ${fmtDate(l.date)}</span></div>`).join('')}<hr class="divider" />`:''}
     ${empCards.length?`<div class="section-title">💳 Kort & brikker</div>
       ${empCards.map(c=>`<div class="card-row">
         <span>${{fuel:'⛽ Brændstofkort',charge:'🔋 Ladebrik',key:'🔑 Bilnøgle',evotec:'📟 Evotec'}[c.type]||c.type}${c.number?' · '+c.number:''}</span>
@@ -1656,12 +1766,8 @@ window.updateCardFields = function(){
 };
 
 window.openCardModal = function(){
-  const sorted = [...employees].sort((a,b)=>{
-    const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-    return na-nb || (a.name||'').localeCompare(b.name||'');
-  });
-  document.getElementById('card-emp-sel').innerHTML='<option value="">Vælg medarbejder...</option>'+
-    sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+  const sorted = sortEmployees(employees);
+  document.getElementById('card-emp-sel').innerHTML=empDropdownOptions(sorted, 'Vælg medarbejder...');
   document.getElementById('card-date').value=''; document.getElementById('card-date').value=todayStr();
   document.getElementById('card-note').value='';
   document.getElementById('card-type-sel').value='fuel';
@@ -1756,7 +1862,7 @@ function renderCards(){
       <div class="log-header">
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
           <span class="badge badge-${tc[c.type]||'gray'}">${ti[c.type]||'💳'} ${tl[c.type]||c.type}</span>
-          <span style="font-size:0.82rem;color:var(--text2)"><strong>${emp.name}</strong> <span style="color:var(--text3)">(${emp.tur})</span></span>
+          <span style="font-size:0.82rem;color:var(--text2)"><strong>${esc(emp.name)}</strong> <span style="color:var(--text3)">(${esc(emp.tur)})</span></span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           ${c.active?'<span class="badge badge-green">Aktiv</span>':'<span class="badge badge-gray">Afleveret</span>'}
@@ -1831,10 +1937,10 @@ function renderCardHistory(){
 
     html += `<div class="card" style="margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-        <div class="emp-avatar" style="width:36px;height:36px;font-size:0.65rem">${ini}</div>
+        <div class="emp-avatar" style="width:36px;height:36px;font-size:0.65rem">${esc(ini)}</div>
         <div>
-          <div style="font-weight:700;font-size:0.92rem">${emp.name}</div>
-          <div style="font-size:0.78rem;color:var(--accent2);font-family:var(--mono)">Tur ${emp.tur} · ${empCards.length} kort/brikker</div>
+          <div style="font-weight:700;font-size:0.92rem">${esc(emp.name)}</div>
+          <div style="font-size:0.78rem;color:var(--accent2);font-family:var(--mono)">Tur ${esc(emp.tur)} · ${empCards.length} kort/brikker</div>
         </div>
       </div>`;
 
@@ -1887,7 +1993,7 @@ function renderCustomCatsList(){
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-size:1.3rem">${c.icon}</span>
-        <div><div style="font-size:0.9rem;font-weight:600">${c.label}</div>
+        <div><div style="font-size:0.9rem;font-weight:600">${esc(c.label)}</div>
           <div style="font-size:0.75rem;color:var(--text3)">${(c.fields||[]).length} felter</div></div>
       </div>
       <div style="display:flex;gap:6px">
@@ -1994,7 +2100,7 @@ function renderOverview(){
           const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
           const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
           return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <span style="font-weight:600;font-size:0.88rem">${emp.name} <span style="color:var(--text3);font-size:0.78rem">(${emp.tur})</span></span>
+            <span style="font-weight:600;font-size:0.88rem">${esc(emp.name)} <span style="color:var(--text3);font-size:0.78rem">(${esc(emp.tur)})</span></span>
             <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono)">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)} · ${days}d</span>
           </div>`;
         }).join('')}
@@ -2091,28 +2197,28 @@ function renderLogItem(l,cm,showDelete){
     </div>`:''}
     <div class="log-header">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px">
-        <span class="badge badge-${cat.color}">${cat.icon} ${cat.label}</span>
+        <span class="badge badge-${cat.color}">${cat.icon} ${esc(cat.label)}</span>
         ${l.category==='invoice'&&l.extra?.inv_amount?`<span class="invoice-chip">💰 ${Number(l.extra.inv_amount).toLocaleString('da-DK')} kr.</span>`:''}
         <span style="font-size:0.82rem;color:var(--text2)${isDeleted?';text-decoration:line-through;color:var(--text3)':''}">
-          <strong>${emp.name}</strong> <span style="color:var(--text3)">(${emp.tur})</span>
+          <strong>${esc(emp.name)}</strong> <span style="color:var(--text3)">(${esc(emp.tur)})</span>
         </span>
         ${isDeleted?`<span style="font-size:0.7rem;background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.25);padding:1px 7px;border-radius:100px;font-weight:600;">slettet</span>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        ${l.ansvarlig?`<span class="audit-by">${l.ansvarlig}</span>`:''}
+        ${l.ansvarlig?`<span class="audit-by">${esc(l.ansvarlig)}</span>`:''}
         ${l.lastEditedBy?`<span style="font-size:0.7rem;color:var(--text3);font-style:italic">redigeret</span>`:''}
         <span class="log-meta">${fmtDate(l.date)}</span>
       </div>
     </div>
     ${extra?`<div class="log-details">${extra}</div>`:''}
-    ${l.comment?`<div class="log-details" style="color:var(--text3);font-style:italic">"${l.comment}"</div>`:''}
+    ${l.comment?`<div class="log-details" style="color:var(--text3);font-style:italic">"${esc(l.comment)}"</div>`:''}
   </div>`;
 }
 function buildExtraText(l,cat){
   return (cat.fields||[]).map(f=>{
     const v=l.extra?.[f.id];
     if(!v||(Array.isArray(v)&&!v.length)) return '';
-    return `${f.label}: ${Array.isArray(v)?v.join(', '):v}`;
+    return `${esc(f.label)}: ${esc(Array.isArray(v)?v.join(', '):v)}`;
   }).filter(Boolean).join(' &nbsp;·&nbsp; ');
 }
 
@@ -2193,8 +2299,8 @@ function _renderAuditPage(){
         const s = a.snapshot||{};
         diffHtml=`<div class="audit-diff">
           <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">🔗 Medarbejder flettet</div>
-          <div class="before">❌ ${s.fromEmp||'?'} (${s.fromTur||'-'}) — slettet</div>
-          <div class="after">✅ Flettet ind i ${s.toEmp||'?'} (${s.toTur||'-'})</div>
+          <div class="before">❌ ${esc(s.fromEmp||'?')} (${esc(s.fromTur||'-')}) — slettet</div>
+          <div class="after">✅ Flettet ind i ${esc(s.toEmp||'?')} (${esc(s.toTur||'-')})</div>
           <div style="margin-top:4px;font-size:0.78rem;color:var(--text3)">${s.movedLogs||0} noteringer · ${s.movedCards||0} kort · ${s.movedVacs||0} ferier flyttet</div>
         </div>`;
       }
@@ -2204,7 +2310,7 @@ function _renderAuditPage(){
         const statusLabel = a.after?.status==='approved'?'✅ Godkendt':a.after?.status==='rejected'?'❌ Afslået':'Ændret';
         diffHtml=`<div class="audit-diff">
           <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Ferie ${statusLabel}</div>
-          <div class="after">🏖️ ${s.category||'Ferie'} — ${s.empName||emp.name} (${s.empTur||emp.tur})</div>
+          <div class="after">🏖️ ${esc(s.category||'Ferie')} — ${esc(s.empName||emp.name)} (${esc(s.empTur||emp.tur)})</div>
           ${s.startDate?`<div class="after" style="margin-top:3px">📅 ${fmtDate(s.startDate)} – ${fmtDate(s.endDate)}</div>`:''}
         </div>`;
       }
@@ -2242,14 +2348,14 @@ function _renderAuditPage(){
       if(isVac){
         diffHtml=`<div class="audit-diff">
           <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Ferie-anmodning oprettet</div>
-          <div class="after">🏖️ ${snap.category||VAC_TYPE_LABELS[snap.type]||snap.type||'Ferie'} — ${emp.name} (${emp.tur})</div>
+          <div class="after">🏖️ ${snap.category||VAC_TYPE_LABELS[snap.type]||snap.type||'Ferie'} — ${esc(emp.name)} (${esc(emp.tur)})</div>
           <div class="after" style="margin-top:3px">📅 ${fmtDate(snap.startDate)} – ${fmtDate(snap.endDate)}</div>
         </div>`;
       } else {
         const extra=buildExtraText({extra:snap.extra||{}},cat);
         diffHtml=`<div class="audit-diff">
           <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Oprettet notering</div>
-          <div class="after">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
+          <div class="after">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${esc(cat.label)} &nbsp;·&nbsp; ${esc(emp.name)} (${esc(emp.tur)})</div>
           ${extra?`<div class="after" style="margin-top:3px">${extra}</div>`:''}
           ${snap.comment?`<div class="after" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
         </div>`;
@@ -2259,7 +2365,7 @@ function _renderAuditPage(){
       const extra=buildExtraText({extra:snap.extra||{}},cat);
       diffHtml=`<div class="audit-diff">
         <div style="font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px">Slettet notering</div>
-        <div class="before">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${cat.label} &nbsp;·&nbsp; ${emp.name} (${emp.tur})</div>
+        <div class="before">📅 ${fmtDate(snap.date)} &nbsp;·&nbsp; ${cat.icon} ${esc(cat.label)} &nbsp;·&nbsp; ${esc(emp.name)} (${esc(emp.tur)})</div>
         ${extra?`<div class="before" style="margin-top:3px">${extra}</div>`:''}
         ${snap.comment?`<div class="before" style="margin-top:3px;font-style:italic">"${snap.comment}"</div>`:''}
         ${snap.ansvarlig?`<div style="margin-top:4px;font-size:0.75rem;color:var(--text3)">Oprindeligt registreret af: <span class="audit-by">${snap.ansvarlig}</span></div>`:''}
@@ -2271,13 +2377,13 @@ function _renderAuditPage(){
       const s=a.snapshot||{};
       headerInfo = `🔗 Flet — <strong>${s.fromEmp||'?'}</strong> → <strong>${s.toEmp||'?'}</strong>`;
     } else {
-      headerInfo = `${cat.icon} ${cat.label} — <strong>${emp.name}</strong> (${emp.tur})`;
+      headerInfo = `${cat.icon} ${esc(cat.label)} — <strong>${esc(emp.name)}</strong> (${esc(emp.tur)})`;
     }
 
     return`<div class="audit-item audit-action-${a.action}">
       <div class="audit-meta">
         <span style="font-weight:700;color:var(--text)">${actionLabel[a.action]||a.action}</span>
-        <span class="audit-by">${a.by||'?'}</span>
+        <span class="audit-by">${esc(a.by||'?')}</span>
         <span>${ts}</span>
         <span style="color:var(--text2)">${headerInfo}</span>
       </div>
@@ -2308,15 +2414,11 @@ window.renderAuditLog = renderAuditLog;
 //  SELECTS
 // ═══════════════════════════════════════════════════
 function populateEmpSelects(){
-  const sorted=[...employees].sort((a,b)=>{
-    const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-    return na-nb || (a.name||'').localeCompare(b.name||'');
-  });
+  const sorted=sortEmployees(employees);
   ['hist-emp'].forEach(id=>{
     const sel=document.getElementById(id); if(!sel) return;
     const cur=sel.value;
-    sel.innerHTML='<option value="">Alle medarbejdere</option>'+
-      sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+    sel.innerHTML=empDropdownOptions(sorted, 'Alle medarbejdere');
     sel.value=cur;
   });
 }
@@ -2398,13 +2500,9 @@ window.exportExcel = function(){
   if(incLogs || incInv){
     // Find relevant employees
     const relevantEmpIds = empId ? [empId] : [...new Set(filtered.map(l=>l.empId))];
-    const sortedEmps = relevantEmpIds
+    const sortedEmps = sortEmployees(relevantEmpIds
       .map(id => employees.find(e=>e.id===id))
-      .filter(Boolean)
-      .sort((a,b) => {
-        const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-        return na-nb;
-      });
+      .filter(Boolean));
 
     sortedEmps.forEach(emp => {
       const empLogs = filtered.filter(l=>l.empId===emp.id);
@@ -2462,6 +2560,17 @@ window.exportExcel = function(){
         headerRows.push([]);
         headerRows.push(['Måned','Arbejdsdage','Syge','Ikke mødt','Ferie/fri','Faktiske dage']);
         wdMonths.forEach(w => headerRows.push([w.month, w.budgeted, w.sickDays, w.noshowDays, w.vacDays, w.actual]));
+        headerRows.push([]);
+      }
+
+      // Trukket beløb i perioden (fakturaimport + manuelle regninger, kombineret)
+      const deductionsInPeriod = getEmployeeDeductionsInPeriod(emp.id, from, to);
+      if(deductionsInPeriod.length){
+        const dedTotal = deductionsInPeriod.reduce((s,l)=>s+(l.beløb||0),0);
+        headerRows.push(['💰 Trukket beløb i perioden']);
+        headerRows.push(['Dato','Beskrivelse','Beløb (kr.)']);
+        deductionsInPeriod.forEach(l => headerRows.push([l.date, l.label, l.beløb]));
+        headerRows.push(['', 'Total trukket:', dedTotal]);
         headerRows.push([]);
       }
 
@@ -2536,7 +2645,7 @@ window.exportExcel = function(){
     if(months.length){
       const relevantEmps = empFilter
         ? employees.filter(e=>e.id===empFilter)
-        : [...employees].sort((a,b)=>{const na=parseInt((a.tur||'').replace(/\D/g,''))||0,nb=parseInt((b.tur||'').replace(/\D/g,''))||0;return na-nb;});
+        : sortEmployees(employees);
 
       const rows = [];
       relevantEmps.forEach(emp => {
@@ -2666,16 +2775,16 @@ window.exportPDF = function(){
   if(!filtered.length){toast('⚠️ Ingen data i perioden');return;}
   const rows=filtered.map(l=>{
     const e=employees.find(x=>x.id===l.empId)||{}, c=cm[l.category]||{};
-    return`<tr${l.category==='invoice'?' style="background:#fff5f5"':''}><td>${l.date}</td><td>${e.tur||''}</td><td>${e.name||''}</td><td>${c.icon||''} ${c.label||l.category}</td><td>${buildExtraTextPlain(l,c)}</td><td>${l.comment||''}</td></tr>`;
+    return`<tr${l.category==='invoice'?' style="background:#fff5f5"':''}><td>${l.date}</td><td>${esc(e.tur||'')}</td><td>${esc(e.name||'')}</td><td>${c.icon||''} ${esc(c.label||l.category)}</td><td>${esc(buildExtraTextPlain(l,c))}</td><td>${esc(l.comment||'')}</td></tr>`;
   }).join('');
   const invRows=filtered.filter(l=>l.category==='invoice').map(l=>{
     const e=employees.find(x=>x.id===l.empId)||{};
-    return`<tr><td>${l.date}</td><td>${e.tur||''}</td><td>${e.name||''}</td><td>${l.extra?.inv_type||''}</td><td>${l.extra?.inv_sender||''}</td><td>${l.extra?.inv_amount?Number(l.extra.inv_amount).toLocaleString('da-DK')+' kr.':''}</td><td>${l.extra?.inv_ref||''}</td></tr>`;
+    return`<tr><td>${l.date}</td><td>${esc(e.tur||'')}</td><td>${esc(e.name||'')}</td><td>${esc(l.extra?.inv_type||'')}</td><td>${esc(l.extra?.inv_sender||'')}</td><td>${l.extra?.inv_amount?Number(l.extra.inv_amount).toLocaleString('da-DK')+' kr.':''}</td><td>${esc(l.extra?.inv_ref||'')}</td></tr>`;
   }).join('');
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Pilot.Note</title>
   <style>body{font-family:Arial;font-size:11px;color:#111;margin:20px;}h1{font-size:18px;color:#1e3a5f;}h2{font-size:13px;margin:18px 0 6px;color:#1e3a5f;}.meta{color:#666;margin-bottom:14px;}table{width:100%;border-collapse:collapse;margin-bottom:14px;}th{background:#1e3a5f;color:white;padding:7px 9px;text-align:left;font-size:9px;text-transform:uppercase;}td{padding:6px 9px;border-bottom:1px solid #e5e7eb;vertical-align:top;}tr:nth-child(even) td{background:#f8fafc;}</style></head><body>
-  <h1>Pilot.Note — Udtræk</h1><div class="meta">Periode: ${from} → ${to} | ${empName} | ${filtered.length} noteringer</div>
+  <h1>Pilot.Note — Udtræk</h1><div class="meta">Periode: ${from} → ${to} | ${esc(empName)} | ${filtered.length} noteringer</div>
   <h2>📋 Noteringer</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Kategori</th><th>Detaljer</th><th>Kommentar</th></tr></thead><tbody>${rows}</tbody></table>
   ${invRows?`<h2>💸 Regninger</h2><table><thead><tr><th>Dato</th><th>Tur</th><th>Navn</th><th>Type</th><th>Afsender</th><th>Beløb</th><th>Reference</th></tr></thead><tbody>${invRows}</tbody></table>`:''}
   ${(()=>{
@@ -2697,9 +2806,26 @@ window.exportPDF = function(){
       const clippedFrom = from && r.startDate<from ? from : r.startDate;
       const clippedTo   = to   && r.endDate>to     ? to   : r.endDate;
       const wdays = countWorkdays(clippedFrom, clippedTo);
-      return '<tr><td>'+(e.tur||'')+'</td><td>'+(e.name||'')+'</td><td>'+({ferie:'Ferie',fridag:'Fridag',feriefridag:'Feriefridag',afspadsering:'Afspadsering',barns_sygedag:'Barns sygedag',orlov:'Orlov'}[r.type]||r.type)+'</td><td>'+r.startDate+'</td><td>'+r.endDate+'</td><td>'+wdays+'</td><td>'+(r.note||'')+'</td></tr>';
+      return '<tr><td>'+esc(e.tur||'')+'</td><td>'+esc(e.name||'')+'</td><td>'+({ferie:'Ferie',fridag:'Fridag',feriefridag:'Feriefridag',afspadsering:'Afspadsering',barns_sygedag:'Barns sygedag',orlov:'Orlov'}[r.type]||r.type)+'</td><td>'+r.startDate+'</td><td>'+r.endDate+'</td><td>'+wdays+'</td><td>'+esc(r.note||'')+'</td></tr>';
     }).join('');
     return '<h2>🏖️ Ferier og Fridage</h2><table><thead><tr><th>Tur</th><th>Navn</th><th>Type</th><th>Fra</th><th>Til</th><th>Arbejdsdage i periode</th><th>Note</th></tr></thead><tbody>'+vacRows+'</tbody></table>';
+  })()}
+  ${(()=>{
+    const empF=document.getElementById('exp-emp').value;
+    const relevantEmpIds = empF ? [empF] : [...new Set(filtered.map(l=>l.empId))];
+    let dedRowsAll = '';
+    relevantEmpIds.forEach(eid => {
+      const e = employees.find(x=>x.id===eid)||{};
+      const lines = getEmployeeDeductionsInPeriod(eid, from, to);
+      if(!lines.length) return;
+      const total = lines.reduce((s,l)=>s+(l.beløb||0),0);
+      lines.forEach(l => {
+        dedRowsAll += '<tr><td>'+esc(e.tur||'')+'</td><td>'+esc(e.name||'')+'</td><td>'+fmtDate(l.date)+'</td><td>'+l.label+'</td><td>'+fmtDK(l.beløb)+' kr.</td></tr>';
+      });
+      dedRowsAll += '<tr style="font-weight:700;background:#fef2f2"><td colspan="4" style="text-align:right">Total trukket '+(e.name||'')+':</td><td>'+fmtDK(total)+' kr.</td></tr>';
+    });
+    if(!dedRowsAll) return '';
+    return '<h2>💰 Trukket beløb i perioden</h2><table><thead><tr><th>Tur</th><th>Navn</th><th>Dato</th><th>Beskrivelse</th><th>Beløb</th></tr></thead><tbody>'+dedRowsAll+'</tbody></table>';
   })()}
   <script>window.print();window.onafterprint=()=>window.close();<\/script></body></html>`);
   w.document.close(); closeModal('export-modal');
@@ -2774,7 +2900,7 @@ let _undoTimer = null;
 function toastUndo(msg, onConfirm){
   if(_undoTimer) clearTimeout(_undoTimer);
   const t = document.getElementById('toast');
-  t.innerHTML = msg + ' <button onclick="window._undoNow()" style="margin-left:10px;background:rgba(255,255,255,0.15);border:none;color:inherit;font-weight:700;padding:2px 10px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:0.85rem">Fortryd</button>';
+  t.innerHTML = esc(msg) + ' <button onclick="window._undoNow()" style="margin-left:10px;background:rgba(255,255,255,0.15);border:none;color:inherit;font-weight:700;padding:2px 10px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:0.85rem">Fortryd</button>';
   t.classList.add('show');
   let cancelled = false;
   window._undoNow = () => { if(window._undoCancel) window._undoCancel(); };
@@ -2792,7 +2918,7 @@ function toastUndo(msg, onConfirm){
 
 function toast(msg){
   const t=document.getElementById('toast');
-  t.innerHTML=msg; t.classList.add('show');
+  t.textContent=msg; t.classList.add('show');
   if(_undoTimer){ clearTimeout(_undoTimer); window._undoCancel=null; }
   setTimeout(()=>t.classList.remove('show'),2800);
 }
@@ -2925,16 +3051,11 @@ function populateExpEmpSelect() {
   const sel = document.getElementById('exp-emp');
   if(!sel) return;
   const cur = sel.value;
-  let emps = [...employees].sort((a,b) => {
-    const na = parseInt((a.tur||'').replace(/\D/g,''))||0;
-    const nb = parseInt((b.tur||'').replace(/\D/g,''))||0;
-    return na - nb || (a.name||'').localeCompare(b.name||'');
-  });
+  let emps = sortEmployees(employees);
   if(_expWorkerType !== 'all') {
     emps = emps.filter(e => (e.workerType||'employee') === _expWorkerType);
   }
-  sel.innerHTML = '<option value="">Alle medarbejdere</option>' +
-    emps.map(e => '<option value="' + e.id + '">' + e.tur + ' — ' + e.name + '</option>').join('');
+  sel.innerHTML = empDropdownOptions(emps, 'Alle medarbejdere');
   // Restore selection if still valid
   if(emps.find(e => e.id === cur)) sel.value = cur;
 }
@@ -3025,21 +3146,12 @@ function calcEmployeeWorkDays(empId, yearMonth){
     return dow>=1 && dow<=5;
   }).length;
 
-  // Count vacation/holiday days — only weekdays (Mon-Fri)
+  // Count vacation/holiday days — workdays only (Mon-Fri minus danske helligdage)
   let vacDays = 0;
   (vacRequests||[]).filter(r => r.empId===empId && r.status==='approved').forEach(r => {
     const vStart = r.startDate > monthStart ? r.startDate : monthStart;
     const vEnd = r.endDate < monthEnd ? r.endDate : monthEnd;
-    if(vStart <= vEnd){
-      // Loop through each day and count only Mon-Fri
-      const d = new Date(vStart);
-      const end = new Date(vEnd);
-      while(d <= end){
-        const dow = d.getDay();
-        if(dow>=1 && dow<=5) vacDays++;
-        d.setDate(d.getDate()+1);
-      }
-    }
+    if(vStart <= vEnd) vacDays += countWorkdays(vStart, vEnd);
   });
 
   const actual = Math.max(0, budgeted - sickDays - noshowDays - vacDays);
@@ -3052,14 +3164,10 @@ function calcEmployeeWorkDays(empId, yearMonth){
 let _mergeSecondaryIds = new Set();
 
 window.openMergeModal = function(){
-  const sorted = [...employees].sort((a,b)=>{
-    const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-    return na-nb || (a.name||'').localeCompare(b.name||'');
-  });
+  const sorted = sortEmployees(employees);
 
   document.getElementById('merge-primary').innerHTML =
-    '<option value="">Vælg primær medarbejder...</option>' +
-    sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+    empDropdownOptions(sorted, 'Vælg primær medarbejder...');
 
   _mergeSecondaryIds = new Set();
   renderMergeSecondary();
@@ -3071,10 +3179,7 @@ window.openMergeModal = function(){
 function renderMergeSecondary(){
   const primaryId = document.getElementById('merge-primary').value;
   const el = document.getElementById('merge-secondary-list'); if(!el) return;
-  const sorted = [...employees].sort((a,b)=>{
-    const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-    return na-nb || (a.name||'').localeCompare(b.name||'');
-  }).filter(e=>e.id!==primaryId);
+  const sorted = sortEmployees(employees).filter(e=>e.id!==primaryId);
 
   el.innerHTML = sorted.map(e=>{
     const checked = _mergeSecondaryIds.has(e.id);
@@ -3082,8 +3187,8 @@ function renderMergeSecondary(){
     const cardCount = cards.filter(c=>c.empId===e.id).length;
     return `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.85rem">
       <input type="checkbox" ${checked?'checked':''} onchange="toggleMergeSecondary('${e.id}',this.checked)" style="width:18px;height:18px;accent-color:var(--accent)" />
-      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--accent2);min-width:40px">${e.tur}</span>
-      <span style="flex:1">${e.name}</span>
+      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--accent2);min-width:40px">${esc(e.tur)}</span>
+      <span style="flex:1">${esc(e.name)}</span>
       <span style="font-size:0.7rem;color:var(--text3)">${logCount} not. · ${cardCount} kort</span>
     </label>`;
   }).join('');
@@ -3185,7 +3290,8 @@ window.executeMerge = async function(){
 // ═══════════════════════════════════════════════════
 //  FERIER & FRIDAGE
 // ═══════════════════════════════════════════════════
-const VAC_COLORS = ['#3B82F6','#10B981','#F59E0B','#EF4444','#A78BFA','#EC4899','#06B6D4','#F97316','#84CC16','#6366F1','#14B8A6','#E11D48','#8B5CF6','#0891B2','#CA8A04','#DC2626','#7C3AED','#059669','#D946EF','#EA580C','#2563EB','#16A34A','#DB2777','#4F46E5','#0D9488','#B91C1C','#9333EA','#C026D3','#65A30D','#0284C7'];
+// Farver beregnes deterministisk fra empId (hash → hue) — de forskyder sig aldrig
+// når medarbejdere tilføjes/slettes, i modsætning til den gamle index-baserede palet.
 const VAC_TYPE_LABELS = {ferie:'🌴 Ferie',fridag:'🏖 Fridag',feriefridag:'📅 Feriefridag',afspadsering:'⏰ Afspadsering',barns_sygedag:'👶 Barns sygedag',orlov:'📋 Orlov'};
 
 let vacRequests = [];
@@ -3195,21 +3301,49 @@ let _vacView = 'calendar';
 let _vacFilter = 'all';
 
 // ── Firestore listener ──
+let _vacFirstSnap = true;
 function startVacListener(){
   _snap('vacRequests', [orderBy('createdAt','desc')], snap => {
     const prev = vacRequests.filter(r=>r.status==='pending').length;
     vacRequests = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderVacation();
     updateVacPendingDot();
-    // Notify on new pending
+    // Notify on new pending — men aldrig ved første snapshot (ellers spøgelses-notifikation ved hvert app-load)
     const now = vacRequests.filter(r=>r.status==='pending').length;
-    if(now > prev && prev >= 0) vacNotify('📋 Ny ferieanmodning', `${now} anmodning${now>1?'er':''} afventer godkendelse`);
+    if(!_vacFirstSnap && now > prev) vacNotify('📋 Ny ferieanmodning', `${now} anmodning${now>1?'er':''} afventer godkendelse`);
+    _vacFirstSnap = false;
   }, err => console.error('vacRequests:', err));
 }
 
+// ── Overlap-tjek: findes der allerede pending/godkendt ferie for medarbejderen i intervallet? ──
+function findVacOverlap(empId, start, end, excludeId){
+  return (vacRequests||[]).filter(r =>
+    r.empId === empId &&
+    r.id !== excludeId &&
+    (r.status === 'approved' || r.status === 'pending') &&
+    r.startDate <= end && r.endDate >= start
+  );
+}
+
+// ── Overlap-tjek: noteringer for medarbejderen i et datointerval ──
+function findLogsInRange(empId, start, end){
+  return (logs||[]).filter(l => l.empId === empId && l.date >= start && l.date <= end);
+}
+
+// ── Godkendt ferie der dækker en enkelt dato ──
+function findApprovedVacOnDate(empId, dateStr){
+  return (vacRequests||[]).find(r =>
+    r.empId === empId && r.status === 'approved' &&
+    r.startDate <= dateStr && r.endDate >= dateStr
+  );
+}
+
 function getVacEmpColor(empId){
-  const idx = employees.findIndex(e=>e.id===empId);
-  return idx>=0 ? VAC_COLORS[idx % VAC_COLORS.length] : '#666';
+  const s = String(empId||'');
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  const hue = Math.round((h * 137.508) % 360); // golden angle → god spredning
+  return `hsl(${hue}, 68%, 46%)`;
 }
 
 // ── Views ──
@@ -3269,6 +3403,9 @@ function renderVacCalendar(){
     const el=document.createElement('div'); el.className='vac-day empty'; grid.appendChild(el);
   }
 
+  const detailEl = document.getElementById('vac-day-detail');
+  if(detailEl) detailEl.innerHTML = '';
+
   for(let d=1;d<=daysInMonth;d++){
     const dateStr = `${_vacYear}-${String(_vacMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const el = document.createElement('div');
@@ -3277,17 +3414,32 @@ function renderVacCalendar(){
     const numEl = document.createElement('div'); numEl.className='vd-num'; numEl.textContent=d;
     el.appendChild(numEl);
 
-    // Find who is on vacation this day
+    // Hvem er væk denne dag? Initial-chips i stedet for anonyme prikker.
     const dotsEl = document.createElement('div'); dotsEl.className='vd-dots';
-    const allReqs = [...approved,...pending];
-    allReqs.filter(r=>r.startDate<=dateStr && r.endDate>=dateStr).forEach(r=>{
-      const dot = document.createElement('div');
-      dot.className = 'vac-dot';
-      dot.style.background = getVacEmpColor(r.empId);
-      if(r.status==='pending') dot.style.opacity='0.4';
-      dotsEl.appendChild(dot);
+    const dayReqs = [...approved,...pending].filter(r=>r.startDate<=dateStr && r.endDate>=dateStr);
+    dayReqs.slice(0,3).forEach(r=>{
+      const emp = employees.find(e=>e.id===r.empId);
+      const ini = (emp?.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const chip = document.createElement('div');
+      chip.className = 'vac-chip' + (r.status==='pending' ? ' pending' : '');
+      const col = getVacEmpColor(r.empId);
+      if(r.status==='pending'){ chip.style.borderColor = col; chip.style.color = col; }
+      else chip.style.background = col;
+      chip.textContent = ini;
+      dotsEl.appendChild(chip);
     });
+    if(dayReqs.length > 3){
+      const more = document.createElement('div');
+      more.className = 'vac-chip more';
+      more.textContent = '+'+(dayReqs.length-3);
+      dotsEl.appendChild(more);
+    }
     el.appendChild(dotsEl);
+
+    // Klik på dag → detaljepanel under kalenderen
+    if(dayReqs.length){
+      el.onclick = () => showVacDayDetail(dateStr, dayReqs);
+    }
     grid.appendChild(el);
   }
 
@@ -3297,8 +3449,29 @@ function renderVacCalendar(){
   legendEl.innerHTML = activeEmpIds.map(id=>{
     const emp = employees.find(e=>e.id===id);
     if(!emp) return '';
-    return `<div class="vac-legend-item"><div class="vac-legend-dot" style="background:${getVacEmpColor(id)}"></div>${emp.name.split(' ')[0]}</div>`;
+    return `<div class="vac-legend-item"><div class="vac-legend-dot" style="background:${getVacEmpColor(id)}"></div>${esc(emp.name.split(' ')[0])}</div>`;
   }).join('');
+}
+
+function showVacDayDetail(dateStr, dayReqs){
+  const el = document.getElementById('vac-day-detail'); if(!el) return;
+  el.innerHTML = `<div class="vac-day-detail-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="font-size:0.85rem">📅 ${fmtDate(dateStr)} — ${dayReqs.length} fraværende</strong>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('vac-day-detail').innerHTML=''">✕</button>
+    </div>
+    ${dayReqs.map(r=>{
+      const emp = employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
+      const st = r.status==='pending' ? ' <span style="font-size:0.68rem;color:var(--text3)">(afventer)</span>' : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:0.82rem">
+        <div class="vac-legend-dot" style="background:${getVacEmpColor(r.empId)}"></div>
+        <span style="font-weight:600">${esc(emp.name)}</span>
+        <span style="color:var(--text3);font-size:0.75rem">(${esc(emp.tur)})</span>
+        <span style="margin-left:auto;color:var(--text3);font-size:0.72rem;font-family:var(--mono)">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)}</span>
+        <span>${VAC_TYPE_LABELS[r.type]||r.type}${st}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function renderVacMonthList(){
@@ -3311,11 +3484,11 @@ function renderVacMonthList(){
   el.innerHTML = '<div class="section-title" style="margin-top:4px">📋 Ferier denne måned</div>'+
     inMonth.map(r=>{
       const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
-      const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+      const days=countWorkdays(r.startDate, r.endDate);
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-left:3px solid ${getVacEmpColor(r.empId)};border-radius:8px;margin-bottom:6px">
-        <div style="flex:1"><span style="font-weight:600;font-size:0.88rem">${emp.name}</span> <span style="font-size:0.75rem;color:var(--text3)">(${emp.tur})</span></div>
+        <div style="flex:1"><span style="font-weight:600;font-size:0.88rem">${esc(emp.name)}</span> <span style="font-size:0.75rem;color:var(--text3)">(${esc(emp.tur)})</span></div>
         <span style="font-size:0.72rem;color:var(--text3);font-family:var(--mono)">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)}</span>
-        <span style="font-size:0.7rem;background:var(--surface2);padding:2px 8px;border-radius:20px;color:var(--text3)">${days}d</span>
+        <span style="font-size:0.7rem;background:var(--surface2);padding:2px 8px;border-radius:20px;color:var(--text3)">${days} arb.dage</span>
       </div>`;
     }).join('');
 }
@@ -3346,23 +3519,23 @@ function renderVacAllList(){
 function renderVacReqCard(r, showActions){
   const emp=employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
   const ini=emp.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const days=Math.round((new Date(r.endDate)-new Date(r.startDate))/864e5)+1;
+  const days=countWorkdays(r.startDate, r.endDate);
   const statusLabel = {pending:'Afventer',approved:'Godkendt',rejected:'Afslået'}[r.status]||r.status;
 
   return `<div class="vac-req-card">
     <div class="vac-req-header">
-      <div class="emp-avatar" style="width:36px;height:36px;background:${getVacEmpColor(r.empId)};font-size:0.7rem">${ini}</div>
+      <div class="emp-avatar" style="width:36px;height:36px;background:${getVacEmpColor(r.empId)};font-size:0.7rem">${esc(ini)}</div>
       <div class="vac-req-info">
-        <div class="vac-req-name">${emp.name} <span style="color:var(--text3);font-size:0.78rem">(${emp.tur})</span></div>
-        <div class="vac-req-dates">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)} · ${days} dag${days>1?'e':''}</div>
+        <div class="vac-req-name">${esc(emp.name)} <span style="color:var(--text3);font-size:0.78rem">(${esc(emp.tur)})</span></div>
+        <div class="vac-req-dates">${fmtDate(r.startDate)} – ${fmtDate(r.endDate)} · ${days} arb.dag${days===1?'':'e'}</div>
       </div>
       <div>
         <span class="vac-status ${r.status}">${statusLabel}</span>
         <div style="font-size:0.68rem;color:var(--text3);margin-top:3px">${VAC_TYPE_LABELS[r.type]||r.type}</div>
       </div>
     </div>
-    ${r.note?`<div style="padding:0 14px 10px;font-size:0.82rem;color:var(--text3);font-style:italic">"${r.note}"</div>`:''}
-    ${r.registeredBy?`<div style="padding:0 14px 8px;font-size:0.7rem;color:var(--text3)">Registreret af: ${r.registeredBy}</div>`:''}
+    ${r.note?`<div style="padding:0 14px 10px;font-size:0.82rem;color:var(--text3);font-style:italic">"${esc(r.note)}"</div>`:''}
+    ${r.registeredBy?`<div style="padding:0 14px 8px;font-size:0.7rem;color:var(--text3)">Registreret af: ${esc(r.registeredBy)}</div>`:''}
     ${showActions && r.status==='pending'?`<div class="vac-req-actions">
       <button class="vac-reject" onclick="vacDecide('${r.id}','rejected')">❌ Afslå</button>
       <button class="vac-approve" onclick="vacDecide('${r.id}','approved')">✅ Godkend</button>
@@ -3378,6 +3551,16 @@ window.vacDecide = async function(id, status){
   const r = vacRequests.find(x=>x.id===id); if(!r) return;
   const emp = employees.find(e=>e.id===r.empId)||{name:'?',tur:'-'};
   const label = status==='approved'?'godkendt':'afslået';
+  // Konflikt-tjek FØR godkendelse: findes der noteringer i ferieperioden?
+  if(status==='approved'){
+    const conflicts = findLogsInRange(r.empId, r.startDate, r.endDate);
+    if(conflicts.length){
+      const cm = catMap();
+      const list = conflicts.slice(0,5).map(l=>`• ${fmtDate(l.date)}: ${cm[l.category]?.label||l.category}`).join('\n');
+      const more = conflicts.length>5 ? `\n…og ${conflicts.length-5} mere` : '';
+      if(!confirm(`⚠️ ${emp.name} har ${conflicts.length} notering${conflicts.length>1?'er':''} i ferieperioden:\n\n${list}${more}\n\nGodkend alligevel? (Ryd op i noteringerne bagefter for at undgå dobbelt fradrag.)`)) return;
+    }
+  }
   try{
     setSyncing();
     await _update('vacRequests', id, {status, decidedBy:currentUser, decidedAt:new Date().toISOString()});
@@ -3393,7 +3576,6 @@ window.vacDecide = async function(id, status){
     setSynced();
     toast(`${status==='approved'?'✅':'❌'} ${emp.name}: Ferie ${label}`);
     vacNotify(`${status==='approved'?'✅':'❌'} Ferie ${label}`, `${emp.name}'s ${VAC_TYPE_LABELS[r.type]||'ferie'} er ${label}`);
-    if(status==='approved') scheduleVacReminders(r, emp.name);
   }catch(e){toast('❌ '+e.message)}
 };
 
@@ -3411,6 +3593,13 @@ window.saveVacRequest = async function(){
   if(!currentUser){toast('⚠️ Vælg hvem du er');return;}
 
   const emp = employees.find(e=>e.id===empId)||{name:'?',tur:'-'};
+  // Blokér overlappende ferie for samme medarbejder
+  const overlap = findVacOverlap(empId, start, end);
+  if(overlap.length){
+    const o = overlap[0];
+    toast(`⚠️ ${emp.name} har allerede ${o.status==='approved'?'godkendt':'afventende'} ferie ${fmtDate(o.startDate)} – ${fmtDate(o.endDate)}`);
+    return;
+  }
   const btn=document.getElementById('vac-save-btn');
   btn.disabled=true; btn.textContent='Gemmer...';
   try{
@@ -3454,22 +3643,23 @@ function vacRequestNotifPermission(){
 
 function vacNotify(title, body){
   if('Notification' in window && Notification.permission==='granted'){
-    try{ new Notification(title, {body, icon:'🏖️'}); }catch(e){}
+    try{ new Notification(title, {body}); }catch(e){}
   }
 }
 
-function scheduleVacReminders(r, empName){
-  const startMs = new Date(r.startDate).getTime();
-  const endMs = new Date(r.endDate).getTime()+864e5;
-  const now = Date.now();
-  const day = 864e5;
-
-  // Day before start
-  if(startMs-day>now) setTimeout(()=>vacNotify('🌴 Ferie starter i morgen',`${empName}'s ferie starter i morgen`), startMs-day-now);
-  // On start
-  if(startMs>now) setTimeout(()=>vacNotify('✈️ Ferie starter i dag',`${empName}'s ferie er startet`), startMs-now);
-  // On end
-  if(endMs>now) setTimeout(()=>vacNotify('👋 Ferie slutter i dag',`${empName} er tilbage i morgen`), endMs-now);
+// ── Ferie-påmindelser: tjek ved app-load i stedet for setTimeout ──
+// (setTimeout overlever ikke reload, og delays > ~24,8 dage overflower og fyrer straks)
+function checkVacRemindersToday(){
+  const today = todayStr();
+  const d = new Date(); d.setDate(d.getDate()+1);
+  const tomorrow = d.toISOString().split('T')[0];
+  (vacRequests||[]).filter(r=>r.status==='approved').forEach(r=>{
+    const emp = employees.find(e=>e.id===r.empId);
+    const name = emp?.name || '?';
+    if(r.startDate === tomorrow) vacNotify('🌴 Ferie starter i morgen', `${name}'s ferie starter i morgen`);
+    if(r.startDate === today)    vacNotify('✈️ Ferie starter i dag',   `${name}'s ferie er startet`);
+    if(r.endDate === today)      vacNotify('👋 Ferie slutter i dag',   `${name} er tilbage i morgen`);
+  });
 }
 
 // ── Init vacation ──
@@ -3479,8 +3669,8 @@ function initVacation(){
   // Populate emp select in modal
   const sel=document.getElementById('vac-req-emp');
   if(sel){
-    const sorted=[...employees].sort((a,b)=>{const na=parseInt((a.tur||'').replace(/\D/g,''))||0,nb=parseInt((b.tur||'').replace(/\D/g,''))||0;return na-nb;});
-    sel.innerHTML=sorted.map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+    const sorted=sortEmployees(employees);
+    sel.innerHTML=empDropdownOptions(sorted);
   }
   const byEl=document.getElementById('vac-req-by');
   if(byEl) byEl.textContent=currentUser||'—';
@@ -3488,11 +3678,11 @@ function initVacation(){
   const ed=document.getElementById('vac-req-end');
   if(sd) sd.value=todayStr();
   if(ed) ed.value=todayStr();
-  // Schedule reminders for existing approved vacations
-  vacRequests.filter(r=>r.status==='approved').forEach(r=>{
-    const emp=employees.find(e=>e.id===r.empId);
-    if(emp) scheduleVacReminders(r, emp.name);
-  });
+  // Påmindelses-tjek — maks. én gang pr. dag pr. enhed
+  if(localStorage.getItem('pn_vac_reminded') !== todayStr()){
+    localStorage.setItem('pn_vac_reminded', todayStr());
+    checkVacRemindersToday();
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -3797,11 +3987,7 @@ function renderFuelResults(){
 
   // Card → Employee matching
   const matchEl = document.getElementById('fuel-card-match');
-  const empOpts = '<option value="">— Vælg —</option>' +
-    [...employees].sort((a,b)=>{
-      const na=parseInt((a.tur||'').replace(/\D/g,''))||0, nb=parseInt((b.tur||'').replace(/\D/g,''))||0;
-      return na-nb;
-    }).map(e=>`<option value="${e.id}">${e.tur} — ${e.name}</option>`).join('');
+  const empOpts = empDropdownOptions(sortEmployees(employees), '— Vælg —');
 
   matchEl.innerHTML = _fuelParsedData.map(c => {
     const matched = _fuelCardMatches[c.kortNr] || '';
@@ -4015,7 +4201,7 @@ function renderEmployeeStats(el){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div>
           <span style="font-weight:600;font-size:0.88rem">${emp.name}</span>
-          <span style="font-size:0.75rem;color:var(--text3);font-family:var(--mono);margin-left:6px">Tur ${emp.tur}</span>
+          <span style="font-size:0.75rem;color:var(--text3);font-family:var(--mono);margin-left:6px">Tur ${esc(emp.tur)}</span>
         </div>
         <span style="font-family:var(--mono);font-size:0.82rem;font-weight:700;color:var(--accent2)">${fmtDK(total)} kr.</span>
       </div>
@@ -4086,6 +4272,336 @@ window.resetFuel = function(){
 };
 
 // ═══════════════════════════════════════════════════
+//  FAKTURAIMPORT — PDF + CSV matching til medarbejdere
+// ═══════════════════════════════════════════════════
+let _invoiceImports = [];     // loaded from Firestore
+let _invPdfData = null;       // { invoiceNr, invoiceDate, lines:[{ref,leverancenr,varer,beløb}] }
+let _invCsvRows = [];         // [{ordrenr, kontakt}]
+let _invMatchedLines = [];    // working set: [{ref,leverancenr,varer,beløb,csvKontakt,empId,turParsed,nameParsed}]
+
+function initInvoiceImport(){
+  const pdfInput = document.getElementById('inv-pdf-input');
+  if(pdfInput) pdfInput.onchange = e => handleInvoicePdf(e.target.files?.[0]);
+  const csvInput = document.getElementById('inv-csv-input');
+  if(csvInput) csvInput.onchange = e => handleInvoiceCsv(e.target.files?.[0]);
+  renderInvoiceHistory();
+}
+
+function showInvError(msg){
+  const el = document.getElementById('inv-pdf-error');
+  el.textContent = msg; el.style.display='block';
+}
+function hideInvError(){
+  const el = document.getElementById('inv-pdf-error'); if(el) el.style.display='none';
+  const el2 = document.getElementById('inv-csv-error'); if(el2) el2.style.display='none';
+}
+
+// ── STEP 1: Parse faktura PDF ──
+async function handleInvoicePdf(file){
+  if(!file) return;
+  hideInvError();
+  const status = document.getElementById('inv-pdf-status');
+  status.style.display = 'flex';
+  try {
+    if(!window.pdfjsLib){
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      document.head.appendChild(s);
+      await new Promise((res,rej) => { s.onload=res; s.onerror=rej; });
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+    let allText = '';
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      allText += tc.items.map(it=>it.str).join(' ') + '\n';
+    }
+
+    const parsed = parseInvoicePdfText(allText);
+    if(!parsed || !parsed.lines.length){
+      showInvError('Kunne ikke finde leverancer i PDF\'en. Forventer GLS-faktura med "Leverancenr." og "Ref.".');
+      status.style.display='none'; return;
+    }
+    _invPdfData = parsed;
+
+    document.getElementById('inv-pdf-summary').style.display = 'block';
+    document.getElementById('inv-pdf-summary').innerHTML =
+      `✅ Faktura <strong>${parsed.invoiceNr}</strong> (${fmtDate(parsed.invoiceDate)}) — ${parsed.lines.length} leverance(r) fundet, total <strong>${fmtDK(parsed.totalAmount)} kr.</strong>`;
+    document.getElementById('inv-upload-csv-card').style.display = 'block';
+    status.style.display = 'none';
+  } catch(err){
+    showInvError('Fejl ved læsning af PDF: '+err.message);
+    status.style.display = 'none';
+  }
+}
+
+// Parse GLS faktura text into { invoiceNr, invoiceDate, totalAmount, lines:[{ref,leverancenr,varer:[{navn,antal,beløb}],beløb}] }
+function parseInvoicePdfText(text){
+  const invMatch = text.match(/Fakturanr\.?\s*(\d+)/);
+  const dateMatch = text.match(/Bogføringsdato\s*(\d{2})-(\d{2})-(\d{4})/);
+  const totalMatch = text.match(/I alt DKK\s*([\d.]+,\d{2})/);
+
+  const invoiceNr = invMatch ? invMatch[1] : '';
+  const invoiceDate = dateMatch ? dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1] : '';
+  const totalAmount = totalMatch ? parseFuelDK(totalMatch[1]) : 0;
+
+  // Split text into blocks per "Leverancenr. XXXXX:" ... "Ref.: YYYYY" ... item rows ... until next "Leverancenr."
+  const blocks = [];
+  const blockRe = /Leverancenr\.\s*(\d+):\s*Ref\.:\s*(\d+)([\s\S]*?)(?=Leverancenr\.|Netto DKK|$)/g;
+  let m;
+  while((m = blockRe.exec(text)) !== null){
+    const leverancenr = m[1];
+    const ref = m[2];
+    const body = m[3];
+    // Item rows: "L00091162 GLS T-shirt M kongeblå 2 Stk 49,00 25% 98,00"
+    const itemRe = /(L\d+)\s+(.+?)\s+(\d+)\s+(Stk|Æske|Sæt)\s+([\d.]+,\d{2})\s+\d+%\s+([\d.]+,\d{2})/g;
+    let im, varer = [], lineTotal = 0;
+    while((im = itemRe.exec(body)) !== null){
+      const beløb = parseFuelDK(im[6]);
+      varer.push({ sku: im[1], navn: im[2].trim(), antal: parseInt(im[3]), enhed: im[4], pris: parseFuelDK(im[5]), beløb });
+      lineTotal += beløb;
+    }
+    if(varer.length){
+      blocks.push({ leverancenr, ref, varer, beløb: lineTotal });
+    }
+  }
+
+  return { invoiceNr, invoiceDate, totalAmount, lines: blocks };
+}
+
+// ── STEP 2: Parse CSV ordreliste ──
+async function handleInvoiceCsv(file){
+  if(!file) return;
+  hideInvError();
+  const ext = (file.name.split('.').pop()||'').toLowerCase();
+  if(ext !== 'csv' && ext !== 'txt'){
+    showInvError('Vælg venligst en CSV-fil (.csv). Valgt fil: '+file.name);
+    return;
+  }
+  try {
+    const text = await file.text();
+    const rows = parseInvoiceCsv(text);
+    if(!rows.length){
+      showInvError('CSV-filen er tom eller har ikke det forventede format (Ordrenr., Kontakt).');
+      return;
+    }
+    _invCsvRows = rows;
+    buildInvoiceMatching();
+  } catch(err){
+    showInvError('Fejl ved læsning af CSV: '+err.message);
+  }
+}
+
+// Simple CSV parser (handles quoted fields with commas)
+function parseInvoiceCsv(text){
+  const lines = text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length) return [];
+  const parseLine = (line) => {
+    const out = []; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      if(ch==='"'){ inQ=!inQ; continue; }
+      if(ch===',' && !inQ){ out.push(cur); cur=''; continue; }
+      cur+=ch;
+    }
+    out.push(cur);
+    return out;
+  };
+  const header = parseLine(lines[0]).map(h=>h.trim().toLowerCase());
+  const ordCol = header.findIndex(h=>h.includes('ordrenr'));
+  const kontaktCol = header.findIndex(h=>h.includes('kontakt'));
+  if(ordCol===-1 || kontaktCol===-1) return [];
+  const rows = [];
+  for(let i=1;i<lines.length;i++){
+    const cells = parseLine(lines[i]);
+    const ordrenr = (cells[ordCol]||'').trim();
+    const kontakt = (cells[kontaktCol]||'').trim();
+    if(ordrenr) rows.push({ ordrenr, kontakt });
+  }
+  return rows;
+}
+
+// ── STEP 3: Build matching ──
+function buildInvoiceMatching(){
+  if(!_invPdfData) return;
+  _invMatchedLines = _invPdfData.lines.map(line => {
+    const csvRow = _invCsvRows.find(r => r.ordrenr === line.ref);
+    const csvKontakt = csvRow ? csvRow.kontakt : '';
+    // Parse "NNNN-Navn" or "NNNN Navn" or "NNNN- Navn" pattern
+    const parsed = csvKontakt.match(/^\s*(\d{3,5})\s*-?\s*(.*)$/);
+    const turParsed = parsed ? parsed[1] : '';
+    const nameParsed = parsed ? parsed[2].trim() : csvKontakt;
+    // Try auto-match against employee.tur
+    let empId = null;
+    if(turParsed){
+      const emp = employees.find(e => (e.tur||'').replace(/\D/g,'') === turParsed.replace(/\D/g,''));
+      if(emp) empId = emp.id;
+    }
+    return {
+      ref: line.ref,
+      leverancenr: line.leverancenr,
+      varer: line.varer,
+      beløb: line.beløb,
+      csvKontakt,
+      turParsed,
+      nameParsed,
+      empId
+    };
+  });
+  renderInvoiceMatching();
+  document.getElementById('inv-match-card').style.display = 'block';
+}
+
+function renderInvoiceMatching(){
+  const list = document.getElementById('inv-match-list'); if(!list) return;
+  const sortedEmps = sortEmployees(employees);
+  const empOpts = empDropdownOptions(sortedEmps, '— Vælg medarbejder —');
+
+  list.innerHTML = _invMatchedLines.map((l, idx) => {
+    const varerTxt = l.varer.map(v => v.navn+' ('+v.antal+'x)').join(', ');
+    const matched = l.empId || '';
+    const rowOpts = empOpts.replace('value="'+matched+'"', 'value="'+matched+'" selected');
+    const statusBadge = l.empId
+      ? '<span class="badge badge-green">✓ Matchet</span>'
+      : '<span class="badge badge-orange">⚠ Mangler match</span>';
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:6px">'+
+      '<div style="font-size:0.82rem"><strong>Lev. '+l.leverancenr+'</strong> · Ref. '+l.ref+' · <span style="color:var(--accent2)">'+fmtDK(l.beløb)+' kr.</span></div>'+
+      statusBadge+
+      '</div>'+
+      '<div style="font-size:0.76rem;color:var(--text3);margin-bottom:6px">'+varerTxt+'</div>'+
+      '<div style="font-size:0.74rem;color:var(--text3);margin-bottom:6px">CSV kontakt: <span style="font-family:var(--mono)">'+(l.csvKontakt||'(intet match i CSV)')+'</span></div>'+
+      '<select style="width:100%" onchange="setInvoiceMatch('+idx+',this.value)">'+rowOpts+'</select>'+
+      '</div>';
+  }).join('');
+}
+
+window.setInvoiceMatch = function(idx, empId){
+  if(_invMatchedLines[idx]) _invMatchedLines[idx].empId = empId || null;
+  renderInvoiceMatching();
+};
+
+// ── SAVE ──
+window.saveInvoiceImport = async function(){
+  if(!_invPdfData || !_invMatchedLines.length){ toast('⚠️ Ingen data at gemme'); return; }
+  const unmatched = _invMatchedLines.filter(l => !l.empId);
+  if(unmatched.length){
+    toast('⚠️ '+unmatched.length+' leverance(r) er ikke matchet til en medarbejder endnu');
+    return;
+  }
+  const btn = document.getElementById('inv-save-btn');
+  btn.disabled = true; btn.textContent = 'Gemmer...';
+  const data = {
+    invoiceNr: _invPdfData.invoiceNr,
+    invoiceDate: _invPdfData.invoiceDate,
+    source: 'GLS',
+    lines: _invMatchedLines.map(l => ({
+      ref: l.ref, leverancenr: l.leverancenr, varer: l.varer, beløb: l.beløb,
+      csvKontakt: l.csvKontakt, empId: l.empId
+    })),
+    totalAmount: _invPdfData.totalAmount,
+    uploadedBy: currentUser,
+    createdAt: new Date().toISOString()
+  };
+  try {
+    setSyncing();
+    await _add('invoiceImports', data);
+    setSynced();
+    toast('✅ Faktura gemt og matchet til medarbejdere');
+    resetInvoiceImport();
+  } catch(e){
+    toast('❌ '+e.message);
+    setSynced();
+  }
+  btn.disabled = false; btn.textContent = '💾 Gem faktura';
+};
+
+window.resetInvoiceImport = function(){
+  _invPdfData = null; _invCsvRows = []; _invMatchedLines = [];
+  document.getElementById('inv-pdf-input').value = '';
+  document.getElementById('inv-csv-input').value = '';
+  document.getElementById('inv-pdf-summary').style.display = 'none';
+  document.getElementById('inv-upload-csv-card').style.display = 'none';
+  document.getElementById('inv-match-card').style.display = 'none';
+  hideInvError();
+};
+
+function renderInvoiceHistory(){
+  const list = document.getElementById('inv-history-list'); if(!list) return;
+  if(!_invoiceImports.length){
+    list.innerHTML = '<div class="empty" style="padding:20px 0"><div style="font-size:0.85rem">Ingen fakturaer importeret endnu</div></div>';
+    return;
+  }
+  list.innerHTML = _invoiceImports.map(inv => {
+    const matchedCount = (inv.lines||[]).filter(l=>l.empId).length;
+    return '<div class="card-row">'+
+      '<span>📦 Faktura '+inv.invoiceNr+' · '+fmtDate(inv.invoiceDate)+'</span>'+
+      '<div style="display:flex;align-items:center;gap:8px">'+
+      '<span style="font-size:0.78rem;color:var(--text3)">'+matchedCount+'/'+(inv.lines||[]).length+' matchet · '+fmtDK(inv.totalAmount||0)+' kr.</span>'+
+      '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteInvoiceImport(\''+inv.id+'\')" aria-label="Slet">🗑️</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+window.deleteInvoiceImport = async function(id){
+  toastUndo('🗑️ Sletter faktura om 5 sek...', async () => {
+    try{ setSyncing(); await _delete('invoiceImports', id); setSynced(); }
+    catch(e){ toast('❌ '+e.message); }
+  });
+};
+
+// ── Helper: total invoice balance for an employee (running, all-time) ──
+function getEmployeeInvoiceBalance(empId){
+  let total = 0;
+  _invoiceImports.forEach(inv => {
+    (inv.lines||[]).forEach(l => { if(l.empId === empId) total += (l.beløb||0); });
+  });
+  return total;
+}
+
+// ── Helper: invoice lines for an employee within a date range (by invoiceDate) ──
+function getEmployeeInvoiceLinesInPeriod(empId, from, to){
+  const out = [];
+  _invoiceImports.forEach(inv => {
+    if(from && inv.invoiceDate < from) return;
+    if(to && inv.invoiceDate > to) return;
+    (inv.lines||[]).forEach(l => {
+      if(l.empId === empId) out.push({ ...l, invoiceNr: inv.invoiceNr, invoiceDate: inv.invoiceDate });
+    });
+  });
+  return out;
+}
+
+// ── Combined deductions: invoiceImports (leverancer) + manual "Regning modtaget" logs ──
+// Samlet overblik over alt der trækkes fra en medarbejder, uden at ændre nogen datamodel.
+function getEmployeeManualInvoiceLogs(empId){
+  return logs.filter(l => l.empId===empId && l.category==='invoice' && l.extra?.inv_amount);
+}
+
+function getEmployeeTotalDeductions(empId){
+  const fromImports = getEmployeeInvoiceBalance(empId);
+  const fromManual = getEmployeeManualInvoiceLogs(empId)
+    .reduce((s,l) => s + (Number(l.extra?.inv_amount)||0), 0);
+  return fromImports + fromManual;
+}
+
+function getEmployeeDeductionsInPeriod(empId, from, to){
+  const importLines = getEmployeeInvoiceLinesInPeriod(empId, from, to).map(l => ({
+    source: 'import', beløb: l.beløb||0, date: l.invoiceDate,
+    label: 'Lev. '+l.leverancenr+' (Faktura '+l.invoiceNr+')'
+  }));
+  const manualLines = getEmployeeManualInvoiceLogs(empId)
+    .filter(l => (!from || l.date >= from) && (!to || l.date <= to))
+    .map(l => ({
+      source: 'manual', beløb: Number(l.extra?.inv_amount)||0, date: l.date,
+      label: (l.extra?.inv_type||'Regning')+(l.extra?.inv_sender?' — '+l.extra.inv_sender:'')
+    }));
+  return [...importLines, ...manualLines].sort((a,b) => a.date.localeCompare(b.date));
+}
+
+// ═══════════════════════════════════════════════════
 //  DOKUSCAN — AI FAKTURA SCANNER (via Cloudflare Proxy)
 // ═══════════════════════════════════════════════════
 // ── PROXY CONFIG — Skift disse to værdier ──
@@ -4110,13 +4626,9 @@ let _scanning = false;
 
 function renderScanEmpPills(){
   const c=document.getElementById('scan-emp-pills'); if(!c) return;
-  const sorted = [...employees].sort((a,b) => {
-    const na = parseInt((a.tur||'').replace(/\D/g,'')) || 0;
-    const nb = parseInt((b.tur||'').replace(/\D/g,'')) || 0;
-    return na - nb || (a.name||'').localeCompare(b.name||'');
-  });
+  const sorted = sortEmployees(employees);
   c.innerHTML = sorted.length
-    ? sorted.map(e=>`<div class="emp-pill ${_scanSelectedEmpId===e.id?'selected':''}" onclick="selectScanEmp('${e.id}')">${e.tur} — ${e.name.split(' ')[0]}</div>`).join('')
+    ? sorted.map(e=>`<div class="emp-pill ${_scanSelectedEmpId===e.id?'selected':''}" onclick="selectScanEmp('${e.id}')">${esc(e.tur)} — ${esc(e.name.split(' ')[0])}</div>`).join('')
     : '<span style="color:var(--text3);font-size:0.85rem">Ingen medarbejdere endnu</span>';
 }
 window.selectScanEmp = function(id){ _scanSelectedEmpId=id; renderScanEmpPills(); };
